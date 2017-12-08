@@ -12,7 +12,7 @@
 
 namespace {
     void Usage(const char *programName) {
-        std::cerr << programName << " [-t perftsuite...] [-c uci_command...]" << std::endl;
+        std::cerr << programName << " [-t perftsuite...] [-c uci_command...] [-l log_file...]" << std::endl;
     }
 
     void RunTests() {
@@ -29,8 +29,6 @@ namespace {
 
 int main(int argc, char **argv) {
     Zobrist::Init();
-
-    IO::OpenLogFile("uci_log.txt");
 
     UCI uci;
     bool batchMode = false;
@@ -68,6 +66,13 @@ int main(int argc, char **argv) {
                 RunTests();
                 batchMode = true;
                 i += 1;
+            } else if (strcmp(argv[i], "-l") == 0) {
+                if(i + 1 < argc) {
+                    IO::OpenLogFile(argv[i + 1]);
+                    i += 2;
+                } else {
+                    badArgument = true;
+                }
             } else {
                 badArgument = true;
                 break;
