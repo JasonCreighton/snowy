@@ -1,3 +1,6 @@
+// Copyright (c) 2017 Jason Creighton
+// Available under the MIT license, see included LICENSE file for details
+
 #include "Board.hpp"
 #include "IO.hpp"
 #include "Util.hpp"

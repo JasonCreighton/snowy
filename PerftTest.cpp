@@ -1,3 +1,6 @@
+// Copyright (c) 2017 Jason Creighton
+// Available under the MIT license, see included LICENSE file for details
+
 #include "PerftTest.hpp"
 #include "Board.hpp"
 #include "Search.hpp"

@@ -1,3 +1,6 @@
+// Copyright (c) 2017 Jason Creighton
+// Available under the MIT license, see included LICENSE file for details
+
 #pragma once
 
 // TODO: I feel a little bad putting constants in the global namespace, maybe
