@@ -1,0 +1,6 @@
+# -D_GLIBCXX_DEBUG needed to get clang to emit debug information for libstdc++
+# See: https://stackoverflow.com/questions/41745527/cannot-view-stdstring-when-compiled-with-clang 
+CONFIGNAME=debug
+CONFIGFLAGS=-g -D_GLIBCXX_DEBUG
+
+include Makefile.common

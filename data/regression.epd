@@ -1,0 +1,4 @@
+2kr4/ppp2p1p/5n2/3N2p1/8/5B2/PPn2PPP/5K1R b - - bm Nxd5; c0 "Some weird bug led to this Rxd5? here";
+6k1/6p1/8/6KQ/1r6/q2b4/8/8 w - - bm Qe8+; ce 0; c0 "Simple perpetual check draw";
+8/kp6/8/2N5/8/8/8/5RK1 w - - hmvc 99; bm Nxb7; c0 "50 move rule: white ahead but needs to sacrifice knight to prevent draw"
+8/7k/1R6/R7/8/7P/8/1K6 w - - hmvc 98; bm h4; c0 "50 move rule: Need to make pawn move to avoid draw"

@@ -1,0 +1,32 @@
+# The including Makefile must set the following variables:
+#
+# 	CONFIGNAME (eg, "debug", "release", etc.)
+# 	CONFIGFLAGS (To pass to the compiler)
+
+BUILDDIR=build
+HEADERS=$(wildcard *.hpp)
+SOURCES=$(wildcard *.cpp)
+CXX=clang++
+CXXFLAGS=-std=c++14 -Wall -Wextra -Wpedantic $(CONFIGFLAGS)
+LDLIBS=-lpthread
+
+OBJDIR=$(BUILDDIR)/obj_$(CONFIGNAME)
+OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
+BIN=$(BUILDDIR)/$(CONFIGNAME)
+
+.PHONY: bin prep clean
+
+bin: prep $(BIN)
+
+prep:
+	@mkdir -p $(OBJDIR)
+
+clean:
+	rm -f $(BIN) $(OBJECTS)
+	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
+
+$(BIN): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDLIBS)
+
+$(OBJDIR)/%.o : %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@

@@ -1,0 +1,4 @@
+CONFIGNAME=release
+CONFIGFLAGS=-DNDEBUG -O2 -fno-omit-frame-pointer
+
+include Makefile.common
