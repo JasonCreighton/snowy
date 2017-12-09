@@ -7,6 +7,11 @@ import scipy
 import scipy.sparse.linalg
 import collections
 
+# EPD file is not included in this repository to avoid any confusion about
+# licensing. See https://bitbucket.org/zurichess/tuner if you are interested in
+# the data set.
+EPD_FILE = "../chess-data/zurichess/quiet-labeled.epd"
+
 PieceDesc = collections.namedtuple("PieceDesc", ("chess_piece", "feature", "rank_features", "file_features"))
 
 num_features = 0
@@ -64,17 +69,20 @@ def game_outcome(epd_ops):
 def net_num_pieces(board, piece):
     return len(board.pieces(piece, chess.WHITE)) - len(board.pieces(piece, chess.BLACK))
 
-def build_eqsystem(num_positions, epd_filename):
+def build_eqsystem(num_positions, num_ties, epd_filename):
     board = chess.Board()
     i = 0
 
-    eqsystem = np.zeros((num_positions, num_features))
-    outcomes = np.zeros(num_positions)
+    num_samples = num_positions - num_ties
+
+    eqsystem = np.zeros((num_samples, num_features))
+    outcomes = np.zeros(num_samples)
 
     with open(epd_filename) as epd_file:
         for line in epd_file:
             epd_ops = board.set_epd(line)
 
+            # Ties are excluded at the moment
             if epd_ops["c9"] == "1/2-1/2":
                 continue
 
@@ -97,15 +105,21 @@ def build_eqsystem(num_positions, epd_filename):
 
             i += 1
 
-            if i == num_positions:
-                break
-
-    print("done.")
+    assert i == num_samples
 
     return (eqsystem, outcomes)
 
+# We have to take a scan through the file first in order to know how big we
+# should make the numpy array
+num_positions = 0
+num_ties = 0
+with open(EPD_FILE) as epd_file:
+    for line in epd_file:
+        num_positions += 1
+        if "1/2-1/2" in line:
+            num_ties += 1
 
-eqsystem, outcomes = build_eqsystem(500000, "quiet-labeled.epd")
+eqsystem, outcomes = build_eqsystem(num_positions, num_ties, EPD_FILE)
 
 from sklearn.linear_model import LogisticRegression
 lr = LogisticRegression()
