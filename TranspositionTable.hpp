@@ -36,6 +36,8 @@ private:
         Board::index_t DestSquare;
         Board::square_t Promotion;
         // bitfield stuff, otherwise we don't have room
+        // Note: gcc always warns on using an enum as a bitfield:
+        // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61414
         ScoreBound Bound : 2;
         bool HasMove : 1;
     };
