@@ -75,6 +75,7 @@ namespace {
             -24,   0, -11, -11, -11, -11,   0, -24
         }
     };
+    const int DOUBLED_PAWN_VALUE = -15;
 
     const int ORTHOGONAL_VECTORS[4] = {0x01, -0x01, 0x10, -0x10};
     const int DIAGONAL_VECTORS[4] = {0x11, -0x11, 0x0F, -0x0F};
@@ -729,7 +730,9 @@ void Board::ParseFen(const std::string &fen) {
 
 int Board::StaticEvaluation() {
     int scores[2] = {0, 0};
+    int pawnsOnFile[2][8] = {{0}};
 
+    // Piece square tables and counting pawns on files
     for(int rank = 0; rank < 8; ++rank) {
         for(int file = 0; file < 8; ++file) {
             square_t piece = m_Squares[CoordsToIndex(rank, file)];
@@ -747,6 +750,19 @@ int Board::StaticEvaluation() {
                 
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
                 scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][squareIdx];
+
+                if((piece & SQ_PIECEMASK) == SQ_PAWN) {
+                    pawnsOnFile[colorIdx][file] += 1;
+                }
+            }
+        }
+    }
+
+    // Doubled pawns
+    for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
+        for(int file = 0; file < 8; ++file) {
+            if(pawnsOnFile[colorIdx][file] >= 2) {
+                scores[colorIdx] += DOUBLED_PAWN_VALUE * pawnsOnFile[colorIdx][file];
             }
         }
     }
