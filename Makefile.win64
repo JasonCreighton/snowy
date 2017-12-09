@@ -1,0 +1,10 @@
+CONFIGNAME=win64
+CONFIGFLAGS=-DNDEBUG -O2
+
+include Makefile.common
+
+# The -posix version is required for threading
+CXX=x86_64-w64-mingw32-g++-posix
+# Need to statically link to avoid runtime dependency on pthread DLL
+LDFLAGS=-static -s
+BINEXTENSION=.exe

@@ -10,10 +10,13 @@ release:
 	+make -f Makefile.release
 safe:
 	+make -f Makefile.safe
+win64:
+	+make -f Makefile.win64
 clean:
 	+make -f Makefile.debug clean
 	+make -f Makefile.release clean
 	+make -f Makefile.safe clean
+	+make -f Makefile.win64 clean
 	rm -f compile_commands.json
 
 compile_commands.json: Makefile.debug

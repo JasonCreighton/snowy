@@ -12,7 +12,8 @@ LDLIBS=-lpthread
 
 OBJDIR=$(BUILDDIR)/obj_$(CONFIGNAME)
 OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
-BIN=$(BUILDDIR)/$(CONFIGNAME)
+BINEXTENSION=
+BIN=$(BUILDDIR)/$(CONFIGNAME)$(BINEXTENSION)
 
 .PHONY: bin prep clean
 
@@ -26,7 +27,7 @@ clean:
 	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
 
 $(BIN): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDFLAGS) $(LDLIBS)
 
 $(OBJDIR)/%.o : %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
