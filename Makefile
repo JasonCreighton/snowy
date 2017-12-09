@@ -1,3 +1,7 @@
+# Path to scan-build-py's analyze-build, which uses the compilation database
+# to drive analysis (rather than intercepting build commands)
+CLANG_ANALYZE_BUILD=/usr/share/clang/scan-build-py-3.9/bin/analyze-build
+
 .PHONY: debug release safe clean cppcheck clang-tidy analyze lint all
 
 debug:
@@ -10,6 +14,7 @@ clean:
 	+make -f Makefile.debug clean
 	+make -f Makefile.release clean
 	+make -f Makefile.safe clean
+	rm -f compile_commands.json
 
 compile_commands.json: Makefile.debug
 	make -f Makefile.debug clean
@@ -21,10 +26,9 @@ cppcheck:
 clang-tidy: compile_commands.json
 	run-clang-tidy-3.9.py -j 4 -checks='*,-google-*,-llvm-*,-cppcoreguidelines-*,-clang-analyzer-*,-cert-*,-readability-else-after-return,-readability-implicit-bool-cast'
 
-analyze: Makefile.debug
-	make -f Makefile.debug clean
-	scan-build-3.9 make -f Makefile.debug -j 4
+clang-analyze: compile_commands.json
+	$(CLANG_ANALYZE_BUILD) --status-bugs
 
-lint: clang-tidy cppcheck
+lint: cppcheck clang-analyze clang-tidy
 
 all: debug release safe
