@@ -3,3 +3,6 @@ build/*
 
 # Ignore Visual Studio Code settings
 .vscode/*
+
+# Compilation database, used by clang-tidy and the clang static analyzer
+compile_commands.json
