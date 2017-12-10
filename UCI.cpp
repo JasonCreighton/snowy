@@ -182,6 +182,17 @@ bool UCI::DoCommand(const std::string& commandLine) {
         m_Search.WaitForSearch();
 
         m_Board.Print();
+    } else if(command == "num_features") {
+        IO::PutLine(std::to_string(Board::NUM_FEATURES));
+    } else if(command == "features") {
+        m_Search.WaitForSearch();
+        std::string featureString;
+
+        for(int f : m_Board.EvaluationFeatures()) {
+            featureString += std::to_string(f) + " ";
+        }
+
+        IO::PutLine(featureString);
     } else if (command == "quit") {
         return false;
     }

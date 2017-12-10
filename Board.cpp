@@ -13,7 +13,6 @@
 namespace {
     #include "StaticEvaluationParameters.hpp"
     const int MOVE_SCORE_CASTLING = 25;
-    const int DOUBLED_PAWN_VALUE = -15;
 
     const int ORTHOGONAL_VECTORS[4] = {0x01, -0x01, 0x10, -0x10};
     const int DIAGONAL_VECTORS[4] = {0x11, -0x11, 0x0F, -0x0F};
@@ -33,7 +32,9 @@ namespace {
 
 const char *Board::FEN_START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-Board::Board() {
+Board::Board() :
+    m_Features(NUM_FEATURES)
+{
     ParseFen(FEN_START_POSITION);
 }
 
@@ -669,6 +670,8 @@ void Board::ParseFen(const std::string &fen) {
 int Board::StaticEvaluation() {
     int scores[2] = {0, 0};
     int pawnsOnFile[2][8] = {{0}};
+    int pawnMinRank[2][8] = {{7,7,7,7,7,7,7,7},{7,7,7,7,7,7,7,7}};
+    int pawnMaxRank[2][8] = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}};
 
     // Piece square tables and counting pawns on files
     for(int rank = 0; rank < 8; ++rank) {
@@ -691,21 +694,91 @@ int Board::StaticEvaluation() {
 
                 if((piece & SQ_PIECEMASK) == SQ_PAWN) {
                     pawnsOnFile[colorIdx][file] += 1;
+                    pawnMinRank[colorIdx][file] = std::min(pawnMinRank[colorIdx][file], rank);
+                    pawnMaxRank[colorIdx][file] = std::max(pawnMaxRank[colorIdx][file], rank);
                 }
             }
         }
     }
 
-    // Doubled pawns
+    // Calculate board features, which are always from white's perspective.
+    // (For example, if white has two doubled pawns, and black has three, the
+    // number of doubled pawns would be -1)
+    for(int i = 0; i < NUM_FEATURES; ++i) {
+        m_Features[i] = 0;
+    }
+
     for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
+        int otherColorIdx = !colorIdx;
+        int inc = colorIdx == 0 ? 1 : -1;
+
         for(int file = 0; file < 8; ++file) {
-            if(pawnsOnFile[colorIdx][file] >= 2) {
-                scores[colorIdx] += DOUBLED_PAWN_VALUE * pawnsOnFile[colorIdx][file];
+            int pawnsOnThisFile = pawnsOnFile[colorIdx][file];
+
+            if(pawnsOnThisFile == 0) {
+                continue;
+            }
+
+            // Doubled pawns
+            if(pawnsOnThisFile >= 2) {
+                m_Features[(int)Feature::DOUBLED_PAWNS] += (pawnsOnThisFile * inc);
+            }
+
+            // Check two neighboring files to see if we are isolated
+            bool isolated = true;
+            for(int adjacentFile = std::max(file - 1, 0); adjacentFile <= std::min(file + 1, 7); adjacentFile += 2) {
+                if(pawnsOnFile[colorIdx][adjacentFile] > 0) {
+                    isolated = false;
+                    break;
+                }
+            }
+
+            if(isolated) {
+                m_Features[(int)Feature::ISOLATED_PAWNS] += (pawnsOnThisFile * inc);
+            }
+
+            // Passed pawns. This calculation is a bit incomplete, we only test
+            // the most advanced pawn in each file, if there are multiple passed
+            // pawns in a file we will only register a single one as passed.
+            bool passed = true;
+            for(int otherFile = std::max(file - 1, 0); otherFile <= std::min(file + 1, 7); ++otherFile) {
+                if(colorIdx == 0) {
+                    if(pawnMaxRank[colorIdx][file] < pawnMaxRank[otherColorIdx][otherFile]) {
+                        // There is a neighboring black pawn that is closer to
+                        // rank 8 than our white pawn, so it is not passed
+                        passed = false;
+                        break;
+                    }
+                } else {
+                    if(pawnMinRank[colorIdx][file] > pawnMinRank[otherColorIdx][otherFile]) {
+                        // There is a neighboring white pawn that is closer to
+                        // rank 1 than our black pawn, so it is not passed
+                        passed = false;
+                        break;
+                    }
+                }
+            }
+
+            if(passed) {
+                m_Features[(int)Feature::PASSED_PAWNS] += inc;
             }
         }
     }
 
-    return (scores[0] - scores[1]) * (m_WhiteToMove ? 1 : -1);
+    int featureScore = 0;
+    for(int i = 0; i < NUM_FEATURES; ++i) {
+        featureScore += m_Features[i] * FEATURE_VALUES[i];
+    }
+
+    return (scores[0] - scores[1] + featureScore) * (m_WhiteToMove ? 1 : -1);
+}
+
+std::vector<int> Board::EvaluationFeatures() {
+    // Kind of an ugly structure here: We call StaticEvaluation() for the side
+    // effect of populating m_Features
+    StaticEvaluation();
+
+    return m_Features;
 }
 
 bool Board::InCheck() {

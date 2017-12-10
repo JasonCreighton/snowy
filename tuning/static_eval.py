@@ -6,11 +6,15 @@ import numpy as np
 import scipy
 import scipy.sparse.linalg
 import collections
+import subprocess
+import re
+import sys
 
 # EPD file is not included in this repository to avoid any confusion about
 # licensing. See https://bitbucket.org/zurichess/tuner if you are interested in
 # the data set.
 EPD_FILE = "../chess-data/zurichess/quiet-labeled.epd"
+SNOWY_BIN = "build/release"
 
 PieceDesc = collections.namedtuple("PieceDesc", ("chess_piece", "feature", "rank_features", "file_features"))
 
@@ -39,22 +43,6 @@ def generic_piece_desc(chess_piece):
         file_features=symmetric_rank_or_file_features()
     )
 
-# Pawn is special, the rank is not symmetric with respect to the center
-pd_pawn = PieceDesc(
-    chess_piece=chess.PAWN,
-    feature=assign_feature_index(),
-    rank_features=non_symmetric_rank_or_file_features(),
-    file_features=symmetric_rank_or_file_features()
-)
-
-pd_knight = generic_piece_desc(chess.KNIGHT)
-pd_bishop = generic_piece_desc(chess.BISHOP)
-pd_rook = generic_piece_desc(chess.ROOK)
-pd_queen = generic_piece_desc(chess.QUEEN)
-pd_king = generic_piece_desc(chess.KING)
-
-piece_descs = [pd_pawn, pd_knight, pd_bishop, pd_rook, pd_queen, pd_king]
-
 def game_outcome(epd_ops):
     result = epd_ops["c9"]
     if result == "1-0":
@@ -69,7 +57,7 @@ def game_outcome(epd_ops):
 def net_num_pieces(board, piece):
     return len(board.pieces(piece, chess.WHITE)) - len(board.pieces(piece, chess.BLACK))
 
-def build_eqsystem(num_positions, num_ties, epd_filename):
+def build_eqsystem(num_positions, num_ties, snowy_features, epd_filename):
     board = chess.Board()
     i = 0
 
@@ -101,6 +89,9 @@ def build_eqsystem(num_positions, num_ties, epd_filename):
                         eqsystem[i, pd.file_features[square_file]] += val
                         eqsystem[i, pd.rank_features[square_rank]] += val
 
+            for j, feature_value in enumerate(snowy_features[i]):
+                eqsystem[i, extra_feature_indexes[j]] = feature_value
+
             outcomes[i] = game_outcome(epd_ops)
 
             i += 1
@@ -109,18 +100,56 @@ def build_eqsystem(num_positions, num_ties, epd_filename):
 
     return (eqsystem, outcomes)
 
+def snowy_extract_features_from_positions(fen_strings):
+    input_bytes = b"\n".join(b"position fen %s\nfeatures" % fen.encode() for fen in fen_strings)
+    output_bytes = subprocess.run(SNOWY_BIN, input=input_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
+    features = [[int(x) for x in line.strip().split(" ")] for line in output_bytes.decode().strip().split("\n")]
+
+    return features
+
+# Pawn is special, the rank is not symmetric with respect to the center
+pd_pawn = PieceDesc(
+    chess_piece=chess.PAWN,
+    feature=assign_feature_index(),
+    rank_features=non_symmetric_rank_or_file_features(),
+    file_features=symmetric_rank_or_file_features()
+)
+
+pd_knight = generic_piece_desc(chess.KNIGHT)
+pd_bishop = generic_piece_desc(chess.BISHOP)
+pd_rook = generic_piece_desc(chess.ROOK)
+pd_queen = generic_piece_desc(chess.QUEEN)
+pd_king = generic_piece_desc(chess.KING)
+
+piece_descs = [pd_pawn, pd_knight, pd_bishop, pd_rook, pd_queen, pd_king]
+
+# Query how many extra board features there are
+num_extra_features = int(subprocess.run(SNOWY_BIN, input=b"num_features\n", stdout=subprocess.PIPE).stdout)
+extra_feature_indexes = [assign_feature_index() for _ in range(num_extra_features)]
+
 # We have to take a scan through the file first in order to know how big we
-# should make the numpy array
+# should make the numpy array, and also to find the FEN lines to pass to
+# Snowy
+print("Scanning EPD...", file=sys.stderr)
+
 num_positions = 0
 num_ties = 0
+fen_strings = []
 with open(EPD_FILE) as epd_file:
     for line in epd_file:
         num_positions += 1
         if "1/2-1/2" in line:
             num_ties += 1
+        else:
+            fen_strings.append(re.sub(r"c9.*", "", line.strip()))
 
-eqsystem, outcomes = build_eqsystem(num_positions, num_ties, EPD_FILE)
+print("Extracting features from Snowy...", file=sys.stderr)
+snowy_features = snowy_extract_features_from_positions(fen_strings)
 
+print("Building samples...", file=sys.stderr)
+eqsystem, outcomes = build_eqsystem(num_positions, num_ties, snowy_features, EPD_FILE)
+
+print("Running regression...", file=sys.stderr)
 from sklearn.linear_model import LogisticRegression
 lr = LogisticRegression()
 lr.fit(eqsystem, outcomes)
@@ -146,3 +175,4 @@ for pd in piece_descs:
 print("};")
 
 print("const int PIECE_VALUES[6] = {%s};" % ", ".join(str(v) for v in piece_values))
+print("const int FEATURE_VALUES[%d] = {%s};" % (num_extra_features, ", ".join(str(int(round(values[i]))) for i in extra_feature_indexes)))

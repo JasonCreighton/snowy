@@ -24,6 +24,13 @@ public:
 
         std::string ToString() const;
     };
+
+    static const int NUM_FEATURES = 3;
+    enum class Feature {
+        DOUBLED_PAWNS,
+        ISOLATED_PAWNS,
+        PASSED_PAWNS,
+    };
     
     static void Test();    
 
@@ -38,6 +45,7 @@ public:
     static index_t CoordsToIndex(int rank, int file);
     void ParseFen(const std::string &fen);
     int StaticEvaluation();
+    std::vector<int> EvaluationFeatures();
     bool InCheck();
     bool WhiteToMove();
     bool IsRepetition();
@@ -100,6 +108,7 @@ private:
     index_t m_EnPassantTargetSquare = 0x7F;
     Zobrist::hash_t m_PieceHash = 0;
     int m_NumReversiblePlies; // for the 50 move rule
+    std::vector<int> m_Features;
 
     // Undo stack
     std::vector<UndoMove> m_UndoStack;
