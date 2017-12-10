@@ -668,10 +668,20 @@ void Board::ParseFen(const std::string &fen) {
 }
 
 int Board::StaticEvaluation() {
+    // TODO: This function has gotten quite large, would be nice to split it
+    // up somehow. I would also like to the reduce the occurence of code that
+    // looks like:
+    //
+    //     if(white) { ... } else if (black) { ... }
+    //
+    // And instead prefer more color agnostic code.
+
     int scores[2] = {0, 0};
     int pawnsOnFile[2][8] = {{0}};
     int pawnMinRank[2][8] = {{7,7,7,7,7,7,7,7},{7,7,7,7,7,7,7,7}};
     int pawnMaxRank[2][8] = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}};
+    int kingRank[2] = {-1, -1};
+    int kingFile[2] = {-1, -1};
 
     // Piece square tables and counting pawns on files
     for(int rank = 0; rank < 8; ++rank) {
@@ -697,9 +707,18 @@ int Board::StaticEvaluation() {
                     pawnMinRank[colorIdx][file] = std::min(pawnMinRank[colorIdx][file], rank);
                     pawnMaxRank[colorIdx][file] = std::max(pawnMaxRank[colorIdx][file], rank);
                 }
+
+                if((piece & SQ_PIECEMASK) == SQ_KING) {
+                    assert(kingRank[colorIdx] == -1 && kingFile[colorIdx] == -1);
+                    kingRank[colorIdx] = rank;
+                    kingFile[colorIdx] = file;
+                }
             }
         }
     }
+
+    // Both kings should have been found
+    assert(kingRank[0] != -1 && kingFile[0] != -1 && kingRank[1] != -1 && kingFile[1] != -1);
 
     // Calculate board features, which are always from white's perspective.
     // (For example, if white has two doubled pawns, and black has three, the
@@ -711,7 +730,10 @@ int Board::StaticEvaluation() {
     for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
         int otherColorIdx = !colorIdx;
         int inc = colorIdx == 0 ? 1 : -1;
+        int backRank = colorIdx == 0 ? 0 : 7;
+        int pawnAdvancementDirection = colorIdx == 0 ? 1 : -1;
 
+        // Doubled/Isolated/Passed pawns
         for(int file = 0; file < 8; ++file) {
             int pawnsOnThisFile = pawnsOnFile[colorIdx][file];
 
@@ -761,6 +783,36 @@ int Board::StaticEvaluation() {
 
             if(passed) {
                 m_Features[(int)Feature::PASSED_PAWNS] += inc;
+            }
+        }
+
+        // King pawn shield
+        int* myLeastAdvancedPawn = (colorIdx == 0) ? pawnMinRank[0] : pawnMaxRank[1];
+        if(kingRank[colorIdx] == backRank) {
+            bool considerShield = false;
+            int startFile;
+            int endFile;
+
+            if(kingFile[colorIdx] > 4) {
+                considerShield = true;
+                startFile = 5;
+                endFile = 7;
+            } else if(kingFile[colorIdx] < 3) {
+                considerShield = true;
+                startFile = 0;
+                endFile = 2;
+            }
+
+            if(considerShield) {
+                for(int file = startFile; file <= endFile; ++file) {
+                    if(pawnsOnFile[colorIdx][file] == 0) {
+                        m_Features[(int)Feature::PAWN_SHIELD_MISSING] += inc;
+                    } else if(myLeastAdvancedPawn[file] == (backRank + pawnAdvancementDirection)) {
+                        m_Features[(int)Feature::PAWN_SHIELD_UNADVANCED] += inc;
+                    } else if(myLeastAdvancedPawn[file] == (backRank + pawnAdvancementDirection*2)) {
+                        m_Features[(int)Feature::PAWN_SHIELD_ADVANCED_1] += inc;
+                    }
+                }
             }
         }
     }

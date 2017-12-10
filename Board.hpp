@@ -25,12 +25,16 @@ public:
         std::string ToString() const;
     };
 
-    static const int NUM_FEATURES = 3;
     enum class Feature {
         DOUBLED_PAWNS,
         ISOLATED_PAWNS,
         PASSED_PAWNS,
+        PAWN_SHIELD_UNADVANCED,
+        PAWN_SHIELD_ADVANCED_1,
+        PAWN_SHIELD_MISSING,
+        _END_SENTINEL,
     };
+    static const int NUM_FEATURES = (int)Feature::_END_SENTINEL;
     
     static void Test();    
 
