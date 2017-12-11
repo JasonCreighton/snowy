@@ -13,14 +13,23 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <condition_variable>
 
 class Search {
 public:
+    struct Parameters {
+        int Depth;
+        bool BruteForce;
+        bool ShowHistograms;
+        int MoveTime_ms;
+    };
+
     static void Test();
     
     explicit Search(Board &board);
+    ~Search();
 
-    void StartSearch(int depth, bool bruteForce, bool showHistograms, int moveTime_ms);
+    void StartSearch(const Parameters& params);
     void StopSearch();
     void WaitForSearch();
     int Quiesce();
@@ -32,7 +41,9 @@ private:
         Board::Move KillerMoves[NUM_KILLER_MOVE_SLOTS];
     };
 
-    void RunSearch(int maxDepth, bool bruteForce, bool showHistograms);
+    void WorkerThreadMain();
+
+    void RunSearch();
     void CheckTimeLimit();
     std::vector<Board::Move> PV(int depth);
     int MainSearch(int alpha, int beta, int plyIndex, int depth);
@@ -42,14 +53,18 @@ private:
     int BruteForceSearch(int plyIndex, int depth);
     long Perft(int depth, int plyIndex);
 
-    std::mutex m_Lock;
-    std::atomic<bool> m_StopRequested;
-    std::thread m_SearchThread;
+    std::mutex m_Mutex;
+    std::condition_variable m_WorkerThreadWakeup;
+    bool m_SearchParametersAvailable;
+    bool m_WorkerThreadShutDownRequested;
+    std::atomic<bool> m_StopSearchRequested;
+    std::thread m_WorkerThread;
+
+    Parameters m_SearchParameters;
 
     Board &m_Board;
 
     std::chrono::time_point<std::chrono::high_resolution_clock> m_SearchStartTime;
-    int m_SearchTimeLimit_ms;
 
     std::vector<long> m_BetaCutoffHistogram;
     std::vector<long> m_BestMoveHistogram;

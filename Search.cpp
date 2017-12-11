@@ -17,9 +17,10 @@
 #include <chrono>
 
 Search::Search(Board &board) :
-    m_StopRequested(false),
+    m_SearchParametersAvailable(false),
+    m_WorkerThreadShutDownRequested(false),
+    m_StopSearchRequested(false),
     m_Board(board),
-    m_SearchTimeLimit_ms(-1),
     m_BetaCutoffHistogram(250),
     m_BestMoveHistogram(250),
     m_MoveScoreHistogram(200),
@@ -28,42 +29,81 @@ Search::Search(Board &board) :
     m_NumMainNodes(0),
     m_NumQuiesceNodes(0),
     m_Plies(MAX_PLY),
-    m_TT(20) {
+    m_TT(20)
+{
+    // Spawn worker thread
+    m_WorkerThread = std::thread(&Search::WorkerThreadMain, this);
 }
 
-void Search::StartSearch(int depth, bool bruteForce, bool showHistograms, int moveTime_ms) {
-    WaitForSearch();
+Search::~Search() {
+    // We can set this without the lock because it is atomic and also not a
+    // condition variable
+    m_StopSearchRequested = true;
 
-    std::lock_guard<std::mutex> guard(m_Lock);
+    // Grab lock, since we need to hold it in order to set a condition variable
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
 
-    m_StopRequested = false;
-    m_SearchTimeLimit_ms = moveTime_ms;
-    m_SearchStartTime = std::chrono::high_resolution_clock::now();
+        m_WorkerThreadShutDownRequested = true;
+    }
 
-    m_SearchThread = std::thread(&Search::RunSearch, this, depth, bruteForce, showHistograms);
+    // Wake up worker thread, so that it can exit
+    m_WorkerThreadWakeup.notify_one();
+
+    // m_WorkerThread should be joinable, since we only start it in the
+    // constructor, and we only join it here.
+    m_WorkerThread.join();
+}
+
+void Search::WorkerThreadMain() {
+    std::unique_lock<std::mutex> lock(m_Mutex);
+
+    for(;;) {
+        // Wait on condition variable
+        m_WorkerThreadWakeup.wait(lock);
+
+        if(m_WorkerThreadShutDownRequested) {
+            return;
+        }
+
+        if(m_SearchParametersAvailable) {
+            RunSearch();
+
+            m_StopSearchRequested = false;
+            m_SearchParametersAvailable = false;
+        }
+    }
+}
+
+void Search::StartSearch(const Parameters& params) {
+    std::lock_guard<std::mutex> guard(m_Mutex);
+
+    assert(!m_SearchParametersAvailable);
+
+    m_SearchParameters = params;
+    m_SearchParametersAvailable = true;
+
+    m_WorkerThreadWakeup.notify_one();
 }
 
 void Search::StopSearch() {
     // Purposefully don't grab the lock yet, if the search thread is running, we
     // won't be able to.
-    m_StopRequested = true;
+    m_StopSearchRequested = true;
 
-    WaitForSearch();
+    // Grab the lock to wait for the search thread to stop
+    std::lock_guard<std::mutex> guard(m_Mutex);
 }
 
 void Search::WaitForSearch() {
-    // Can't grab the lock here: In batch scenarios, where we issue a command
-    // and then immediately wait on it, there is a potential for deadlock.
-
-    // Block until the thread is halted
-    if(m_SearchThread.joinable()) {
-        m_SearchThread.join();
-    } 
+    // Just block until the search thread releases the mutex
+    std::lock_guard<std::mutex> guard(m_Mutex);
 }
 
-void Search::RunSearch(int maxDepth, bool bruteForce, bool showHistograms) {
-    // Hold the lock while we are running
-    std::lock_guard<std::mutex> guard(m_Lock);
+void Search::RunSearch() {
+    // No need to acquire mutex, SearchThreadMain() called us and is already
+    // holding it.
+    m_SearchStartTime = std::chrono::high_resolution_clock::now();
 
     std::vector<Board::Move> pv;
 
@@ -73,23 +113,22 @@ void Search::RunSearch(int maxDepth, bool bruteForce, bool showHistograms) {
     
     m_TT.AdvanceTime();
 
-    for(int depth = 1; depth <= maxDepth; ++depth) {
+    for(int depth = 1; depth <= m_SearchParameters.Depth; ++depth) {
         int score;
-        int minimumSafeSearchDepth = maxDepth;
+        int minimumSafeSearchDepth = m_SearchParameters.Depth;
         
         m_NumMainNodes = 0;
         m_NumQuiesceNodes = 0;
         m_HashTableScoreHits = 0;
         m_HashTableMoveHits = 0;
 
-
-        if(!bruteForce) {
+        if(!m_SearchParameters.BruteForce) {
             score = MainSearch(-SCORE_INF, SCORE_INF, 0, depth);
         } else {
             score = BruteForceSearch(0, depth);
         }
 
-        if(m_StopRequested) {
+        if(m_StopSearchRequested) {
             // Search was aborted or timed out, but we still need to print bestmove
             break;
         }
@@ -137,7 +176,7 @@ void Search::RunSearch(int maxDepth, bool bruteForce, bool showHistograms) {
 
     IO::PutLine("bestmove " + pv[0].ToString());
 
-    if(showHistograms) {
+    if(m_SearchParameters.ShowHistograms) {
         IO::PutInfo("Best move/Refutation move ordering histogram:");
         for(int i = 0; i < 250; ++i) {
             if(m_BestMoveHistogram[i] != 0 || m_BetaCutoffHistogram[i] != 0) {
@@ -157,11 +196,11 @@ void Search::CheckTimeLimit() {
     static int counter = 0;
     counter = (counter + 1) & 0xFFF;
 
-    if(counter == 0 && m_SearchTimeLimit_ms != -1) {
+    if(counter == 0 && m_SearchParameters.MoveTime_ms != -1) {
         auto timeElapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
 
-        if(timeElapsed_ms.count() > m_SearchTimeLimit_ms) {
-            m_StopRequested = true;
+        if(timeElapsed_ms.count() > m_SearchParameters.MoveTime_ms) {
+            m_StopSearchRequested = true;
         }
     }
 }
@@ -230,7 +269,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
 
                 m_Board.Unmake();
 
-                if(m_StopRequested) {
+                if(m_StopSearchRequested) {
                     // abort search
                     return 0;
                 }
@@ -335,6 +374,8 @@ void Search::UpdateKillers(int plyIndex, Board::Move move) {
 }
 
 int Search::Quiesce() {
+    std::lock_guard<std::mutex> lock(m_Mutex);
+
     return Quiesce(-SCORE_INF, SCORE_INF, 0);
 }
 
@@ -369,7 +410,7 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
             int moveScore = -Quiesce(-beta, -alpha, plyIndex + 1);
             m_Board.Unmake();
 
-            if(m_StopRequested) {
+            if(m_StopSearchRequested) {
                 return 0;
             }
 
@@ -473,6 +514,8 @@ std::vector<Board::Move> Search::PV(int depth) {
 }
 
 long Search::Perft(int depth) {
+    std::lock_guard<std::mutex> lock(m_Mutex);    
+
     return Perft(depth, 0);
 }
 

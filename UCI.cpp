@@ -107,49 +107,51 @@ bool UCI::DoCommand(const std::string& commandLine) {
         IO::PutLine("readyok");
     } else if (command == "go") {
         std::string optionName;
-        int depth = -1;
-        bool bruteForce = false;
-        int moveTime_ms = -1;
+        Search::Parameters params;
+
+        params.Depth = -1;
+        params.BruteForce = false;
+        params.MoveTime_ms = -1;
+        params.ShowHistograms = false;
         int wtime_ms = -1;
         int winc_ms = 0;
         int btime_ms = -1;
         int binc_ms = 0;
         int movesUntilNextTimeControl = 40;
-        bool showHistograms = false;
         while(lineStream >> optionName) {
-                 if(optionName == "depth") { lineStream >> depth; }
-            else if(optionName == "bruteforce") { lineStream >> bruteForce; }
-            else if(optionName == "movetime") { lineStream >> moveTime_ms; }
+                 if(optionName == "depth") { lineStream >> params.Depth; }
+            else if(optionName == "bruteforce") { lineStream >> params.BruteForce; }
+            else if(optionName == "movetime") { lineStream >> params.MoveTime_ms; }
             else if(optionName == "wtime") { lineStream >> wtime_ms; }
             else if(optionName == "winc") { lineStream >> winc_ms; }
             else if(optionName == "btime") { lineStream >> btime_ms; }
             else if(optionName == "binc") { lineStream >> binc_ms; }
             else if(optionName == "movestogo") { lineStream >> movesUntilNextTimeControl; }
-            else if(optionName == "showhistograms") { lineStream >> showHistograms; }
+            else if(optionName == "showhistograms") { lineStream >> params.ShowHistograms; }
         }
 
-        if(moveTime_ms == -1) {
+        if(params.MoveTime_ms == -1) {
             // No move time, try to calculate one
             if(m_Board.WhiteToMove()) {
-                moveTime_ms = ChooseMoveTime(wtime_ms, winc_ms, movesUntilNextTimeControl);
+                params.MoveTime_ms = ChooseMoveTime(wtime_ms, winc_ms, movesUntilNextTimeControl);
             } else {
-                moveTime_ms = ChooseMoveTime(btime_ms, binc_ms, movesUntilNextTimeControl);
+                params.MoveTime_ms = ChooseMoveTime(btime_ms, binc_ms, movesUntilNextTimeControl);
             }
             // NB: At this point moveTime_ms might still be -1, depending on the options given
         }
 
-        if(depth == -1) {
+        if(params.Depth == -1) {
             // No depth was specified, unlimited search depth
-            depth = MAX_PLY;
+            params.Depth = MAX_PLY;
 
             // However, if no move time was given, perhaps a reasonable default
             // so we don't search forever
-            if(moveTime_ms == -1) {
-                moveTime_ms = 5000;
+            if(params.MoveTime_ms == -1) {
+                params.MoveTime_ms = 5000;
             }
         }
         
-        m_Search.StartSearch(depth, bruteForce, showHistograms, moveTime_ms);
+        m_Search.StartSearch(params);
     } else if (command == "stop") {
         m_Search.StopSearch();
     } else if(command == "perft") {
