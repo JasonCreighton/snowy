@@ -574,6 +574,9 @@ void Board::ParseFen(const std::string &fen) {
     memset(m_Squares, SQ_EMPTY, sizeof(m_Squares));
     m_PieceHash = 0;
 
+    // Clear undo stack, otherwise this could grow without limit
+    m_UndoStack.clear();
+
     // Parse board portion of FEN
     while(!(rank == 0 && file > 7)) {
         square_t piece = SQ_EMPTY;
