@@ -36,19 +36,28 @@ Search::Search(Board &board) :
 }
 
 Search::~Search() {
-    // We can set this without the lock because it is atomic and also not a
-    // condition variable
+    // Need to set this in case the worker thread is holding the mutex and
+    // RunSearch() is running.
     m_StopSearchRequested = true;
 
-    // Grab lock, since we need to hold it in order to set a condition variable
     {
+        // Need to grab the mutex here in part to protect the access to 
+        // m_WorkerThreadShutDownRequested, but that could easily be made
+        // atomic. The more fundamental reason is to ensure that the worker
+        // thread is waiting on the condition variable when we call notify_one()
+        // below. Without holding the mutex, the worker thread could end up
+        // missing the notify and then waiting forever on the condition
+        // variable.
         std::lock_guard<std::mutex> lock(m_Mutex);
 
         m_WorkerThreadShutDownRequested = true;
-    }
 
-    // Wake up worker thread, so that it can exit
-    m_WorkerThreadWakeup.notify_one();
+        // Wake up worker thread, so that it can exit
+        m_WorkerThreadCommandAvailable.notify_one();
+
+        // Release lock by ending scope, so that we don't deadlock with the
+        // worker thread when we join() below
+    }
 
     // m_WorkerThread should be joinable, since we only start it in the
     // constructor, and we only join it here.
@@ -59,8 +68,9 @@ void Search::WorkerThreadMain() {
     std::unique_lock<std::mutex> lock(m_Mutex);
 
     for(;;) {
-        // Wait on condition variable
-        m_WorkerThreadWakeup.wait(lock);
+        while(!m_WorkerThreadShutDownRequested && !m_SearchParametersAvailable) {
+            m_WorkerThreadCommandAvailable.wait(lock);
+        }
 
         if(m_WorkerThreadShutDownRequested) {
             return;
@@ -71,6 +81,7 @@ void Search::WorkerThreadMain() {
 
             m_StopSearchRequested = false;
             m_SearchParametersAvailable = false;
+            m_SearchPendingChanged.notify_one();
         }
     }
 }
@@ -83,7 +94,7 @@ void Search::StartSearch(const Parameters& params) {
     m_SearchParameters = params;
     m_SearchParametersAvailable = true;
 
-    m_WorkerThreadWakeup.notify_one();
+    m_WorkerThreadCommandAvailable.notify_one();
 }
 
 void Search::StopSearch() {
@@ -91,13 +102,19 @@ void Search::StopSearch() {
     // won't be able to.
     m_StopSearchRequested = true;
 
-    // Grab the lock to wait for the search thread to stop
-    std::lock_guard<std::mutex> guard(m_Mutex);
+    WaitForSearch();
 }
 
 void Search::WaitForSearch() {
-    // Just block until the search thread releases the mutex
-    std::lock_guard<std::mutex> guard(m_Mutex);
+    std::unique_lock<std::mutex> lock(m_Mutex);
+
+    // This indicates that a search has been started with StartSearch(), but
+    // the worker thread has not processed it yet. The most common cause of
+    // this is the -c command line option, which can be used to start a search
+    // and then immediately wait on it.
+    while(m_SearchParametersAvailable) {
+        m_SearchPendingChanged.wait(lock);
+    }
 }
 
 void Search::RunSearch() {

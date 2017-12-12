@@ -54,9 +54,16 @@ private:
     long Perft(int depth, int plyIndex);
 
     std::mutex m_Mutex;
-    std::condition_variable m_WorkerThreadWakeup;
+
+    // Condition variable and flags to pass information to worker thread
+    std::condition_variable m_WorkerThreadCommandAvailable;
     bool m_SearchParametersAvailable;
     bool m_WorkerThreadShutDownRequested;
+
+    // Condition variable that we can wait on to tell if a pending search
+    // has completed
+    std::condition_variable m_SearchPendingChanged;
+
     std::atomic<bool> m_StopSearchRequested;
     std::thread m_WorkerThread;
 
