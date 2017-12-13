@@ -55,14 +55,11 @@ private:
 
     std::mutex m_Mutex;
 
-    // Condition variable and flags to pass information to worker thread
-    std::condition_variable m_WorkerThreadCommandAvailable;
-    bool m_SearchParametersAvailable;
-    bool m_WorkerThreadShutDownRequested;
-
-    // Condition variable that we can wait on to tell if a pending search
-    // has completed
-    std::condition_variable m_SearchPendingChanged;
+    // Condition variable and flags to pass information to and from the worker
+    // thread
+    std::condition_variable m_Cond;
+    bool m_Cond_SearchPending;
+    bool m_Cond_WorkerThreadShutDownRequested;
 
     std::atomic<bool> m_StopSearchRequested;
     std::thread m_WorkerThread;
