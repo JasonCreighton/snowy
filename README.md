@@ -1,7 +1,11 @@
 # Snowy
 
-Snowy is a simple UCI chess engine written in C++. It is quite weak, and it is
-developed as a hobby project only.
+Snowy is a UCI chess engine written in C++. It uses an array-based board
+representation (ie, not bitboard), and searches in a straightforward minimax
+manner, with no depth extensions or reductions. The playing strength has not
+been precisely evaluated, but it is somewhere between
+[TSCP](http://www.tckerrigan.com/Chess/TSCP/) and
+[faile](http://faile.sourceforge.net/).
 
 It is available under the terms of the MIT license.
 
