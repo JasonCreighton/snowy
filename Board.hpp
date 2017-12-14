@@ -62,7 +62,7 @@ public:
 private:
     struct UndoMove {
         Zobrist::hash_t PieceHash;
-        int NumReversiblePlies;
+        int PliesSincePawnMoveOrCapture;
         index_t Squares[4];
         square_t Contents[4];
         std::uint8_t CastlingRights;
@@ -111,7 +111,7 @@ private:
     std::uint8_t m_CastlingRights = 0xF;
     index_t m_EnPassantTargetSquare = 0x7F;
     Zobrist::hash_t m_PieceHash = 0;
-    int m_NumReversiblePlies; // for the 50 move rule
+    int m_PliesSincePawnMoveOrCapture; // for the 50 move rule
     std::vector<int> m_Features;
 
     // Undo stack

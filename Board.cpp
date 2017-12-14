@@ -86,12 +86,12 @@ bool Board::IsRepetition() {
     // Note that we return true even in cases of two-fold repetition. This is
     // what Crafty does, but I need to think more about whether it's safe.
 
-    // We need to be careful with our indices here: m_NumReversiblePlies could
-    // come from a FEN position, and doesn't necessary mean there are that
+    // We need to be careful with our indices here: m_PliesSincePawnMoveOrCapture
+    // could come from a FEN position, and doesn't necessary mean there are that
     // many moves in the undo stack.
-    if(m_NumReversiblePlies >= 4) {
+    if(m_PliesSincePawnMoveOrCapture >= 4) {
         // We only have to look at plies where it was our turn to move
-        int pliesToExamine = m_NumReversiblePlies / 2;
+        int pliesToExamine = m_PliesSincePawnMoveOrCapture / 2;
         
         for(int i = static_cast<int>(m_UndoStack.size()) - 2; i >= 0 && pliesToExamine > 0; i -= 2, --pliesToExamine) {
             assert(i >= 0 && i < (int)m_UndoStack.size());
@@ -111,7 +111,7 @@ bool Board::IsRepetition() {
 }
 
 bool Board::IsEligibleForFiftyMoveDraw() {
-    return m_NumReversiblePlies >= 100;
+    return m_PliesSincePawnMoveOrCapture >= 100;
 }
 
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
@@ -428,16 +428,16 @@ bool Board::Make(Move m) {
     bool capturesRook = ((m_Squares[m.DestSquare] & SQ_PIECEMASK) == SQ_ROOK);
 
     // Save undo state
-    undo.NumReversiblePlies = m_NumReversiblePlies;
+    undo.PliesSincePawnMoveOrCapture = m_PliesSincePawnMoveOrCapture;
     undo.EnPassantTargetSquare = m_EnPassantTargetSquare;
     undo.CastlingRights = m_CastlingRights;
     undo.PieceHash = m_PieceHash;
 
     // Update 50 move rule counter
     if(isCapture || isPawnMove) {
-        m_NumReversiblePlies = 0;
+        m_PliesSincePawnMoveOrCapture = 0;
     } else {
-        ++m_NumReversiblePlies;     
+        ++m_PliesSincePawnMoveOrCapture;     
     }
 
     // Handle promotion
@@ -551,7 +551,7 @@ void Board::Unmake() {
     m_PieceHash = undo.PieceHash;
     m_EnPassantTargetSquare = undo.EnPassantTargetSquare;
     m_CastlingRights = undo.CastlingRights;
-    m_NumReversiblePlies = undo.NumReversiblePlies;
+    m_PliesSincePawnMoveOrCapture = undo.PliesSincePawnMoveOrCapture;
 
     // Set squares directly, bypassing hash updates, since we set that above
     for(int i = 0; i < 4; ++i) {
@@ -663,7 +663,7 @@ void Board::ParseFen(const std::string &fen) {
     {
         std::string halfMoveClockStr;
         while(fen[i] != ' ') { halfMoveClockStr.push_back(fen[i++]); }
-        m_NumReversiblePlies = std::stoi(halfMoveClockStr);
+        m_PliesSincePawnMoveOrCapture = std::stoi(halfMoveClockStr);
     }
 
     // Fullmove clock
