@@ -255,8 +255,8 @@ void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
     FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, true, false, promotionAllowed, out_MoveList);
 
     // Captures
-    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection + 0x01, movementDistance, false, true, promotionAllowed, out_MoveList);
-    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection - 0x01, movementDistance, false, true, promotionAllowed, out_MoveList);
+    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, false, true, promotionAllowed, out_MoveList);
+    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, false, true, promotionAllowed, out_MoveList);
 
     // En Passant
     for(int dfile = -1; dfile <= 1; dfile += 2) {
