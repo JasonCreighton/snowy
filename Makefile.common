@@ -6,16 +6,18 @@
 BUILDDIR=build
 HEADERS=$(wildcard *.hpp)
 SOURCES=$(wildcard *.cpp)
+GIT_VERSION:=$(shell git describe --dirty | sed 's/^v//')
 CXX=clang++
-CXXFLAGS=-std=c++14 -Wall -Wextra -Wpedantic $(CONFIGFLAGS)
+CXXFLAGS=-std=c++14 -Wall -Wextra -Wpedantic -DGIT_VERSION=\"$(GIT_VERSION)\" $(CONFIGFLAGS)
 LDLIBS=-lpthread
 
 OBJDIR=$(BUILDDIR)/obj_$(CONFIGNAME)
 OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
 BINEXTENSION=
 BIN=$(BUILDDIR)/$(CONFIGNAME)$(BINEXTENSION)
+CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIGNAME)
 
-.PHONY: bin prep clean
+.PHONY: bin prep clean force
 
 bin: prep $(BIN)
 
@@ -23,11 +25,14 @@ prep:
 	@mkdir -p $(OBJDIR)
 
 clean:
-	rm -f $(BIN) $(OBJECTS)
+	rm -f $(BIN) $(OBJECTS) $(CXXFLAGFILE)
 	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
+
+$(CXXFLAGSFILE): force
+	@echo '$(CXXFLAGS)' | cmp --silent - $@ || echo '$(CXXFLAGS)' > $@
 
 $(BIN): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDFLAGS) $(LDLIBS)
 
-$(OBJDIR)/%.o : %.cpp $(HEADERS)
+$(OBJDIR)/%.o : %.cpp $(HEADERS) $(CXXFLAGSFILE)
 	$(CXX) $(CXXFLAGS) -c $< -o $@

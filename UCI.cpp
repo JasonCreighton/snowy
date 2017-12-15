@@ -13,6 +13,11 @@
 #include <sstream>
 #include <list>
 
+// In case someone wants to use a different build environment
+#ifndef GIT_VERSION
+#define GIT_VERSION "(version unknown)"
+#endif
+
 namespace {
     int ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl) {
         const int TIME_MANAGEMENT_MARGIN_MS = 1000;
@@ -45,6 +50,8 @@ UCI::UCI() : m_Search(m_Board) {
 void UCI::Run() {
     std::string line;
 
+    IO::PutLine("Snowy " GIT_VERSION " by Jason Creighton (built on " __DATE__ " " __TIME__ ")");
+
     while(IO::GetLine(line)) {
         if(!DoCommand(line)) {
             return;
@@ -59,7 +66,7 @@ bool UCI::DoCommand(const std::string& commandLine) {
     lineStream >> command;
 
     if(command == "uci") {
-        IO::PutLine("id name Snowy");
+        IO::PutLine("id name Snowy " GIT_VERSION);
         IO::PutLine("id author Jason Creighton");
         IO::PutLine("uciok");
     } else if(command == "position") {
