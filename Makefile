@@ -2,7 +2,7 @@
 # to drive analysis (rather than intercepting build commands)
 CLANG_ANALYZE_BUILD=/usr/share/clang/scan-build-py-3.9/bin/analyze-build
 
-.PHONY: debug release safe clean cppcheck clang-tidy analyze lint all
+.PHONY: debug release safe win64 clean cppcheck clang-tidy analyze lint all
 
 debug:
 	+make -f Makefile.debug

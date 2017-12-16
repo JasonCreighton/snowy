@@ -1,5 +1,6 @@
 CONFIGNAME=win64
 CONFIGFLAGS=-DNDEBUG -O2
+BINBASENAME=snowy_x64.exe
 
 include Makefile.common
 
@@ -7,4 +8,3 @@ include Makefile.common
 CXX=x86_64-w64-mingw32-g++-posix
 # Need to statically link to avoid runtime dependency on pthread DLL
 LDFLAGS=-static -s
-BINEXTENSION=.exe

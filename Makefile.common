@@ -2,6 +2,7 @@
 #
 # 	CONFIGNAME (eg, "debug", "release", etc.)
 # 	CONFIGFLAGS (To pass to the compiler)
+# 	BINBASENAME (optional, to set executble name)
 
 BUILDDIR=build
 HEADERS=$(wildcard *.hpp)
@@ -13,8 +14,8 @@ LDLIBS=-lpthread
 
 OBJDIR=$(BUILDDIR)/obj_$(CONFIGNAME)
 OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
-BINEXTENSION=
-BIN=$(BUILDDIR)/$(CONFIGNAME)$(BINEXTENSION)
+BINBASENAME?=$(CONFIGNAME)
+BIN=$(BUILDDIR)/$(BINBASENAME)
 CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIGNAME)
 
 .PHONY: bin prep clean force
@@ -25,7 +26,7 @@ prep:
 	@mkdir -p $(OBJDIR)
 
 clean:
-	rm -f $(BIN) $(OBJECTS) $(CXXFLAGFILE)
+	rm -f $(BIN) $(OBJECTS) $(CXXFLAGSFILE)
 	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
 
 $(CXXFLAGSFILE): force
