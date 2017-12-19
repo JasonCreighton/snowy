@@ -11,6 +11,9 @@
 
 class Board {
 public:
+    // square_t is the actual contents of a square (eg, a white knight, black
+    // pawn, etc), and index_t is the number of the square according to the 0x88
+    // scheme. TODO: Come up with better names, these are confusing.
     typedef std::uint8_t square_t;
     typedef std::uint8_t index_t;
 
@@ -63,8 +66,17 @@ private:
     struct UndoMove {
         Zobrist::hash_t PieceHash;
         int PliesSincePawnMoveOrCapture;
+        int NumSquaresUpdated;
+        int NumPieceLocationsUpdated;   
         index_t Squares[4];
         square_t Contents[4];
+        // Maximum piece locations modifications is 5. Worst case is pawn
+        // capture and promotion on the same move:
+        //     * Remove old pawn (2 slots)
+        //     * Remove captured piece (2 slots)
+        //     * Add promoted piece (1 slot)
+        uint8_t PieceLocationIndexes[5];
+        index_t PieceLocations[5];
         std::uint8_t CastlingRights;
         index_t EnPassantTargetSquare;
     };
@@ -89,6 +101,8 @@ private:
     static const int CR_BLACK_KING_SIDE = 0x4;
     static const int CR_BLACK_QUEEN_SIDE = 0x8;
 
+    static const int PL_END_OF_LIST = 0x7F;
+
     struct SquareModification {
         index_t Square;
         square_t OldValue;
@@ -101,12 +115,27 @@ private:
     bool IsAttacked(index_t square);
     Zobrist::hash_t SquareHashCode(index_t square);
     void SetSquare(index_t square, square_t contents);
-    void SetSquareWithUndo(index_t square, square_t contents, UndoMove &undo, int undoIndex);
+    void SetSquareWithUndo(index_t square, square_t contents, UndoMove &undo);
+
+    bool PieceListsConsistentWithBoard() const;
+    int PieceLocationsOffset(bool white, int pieceNumber) const;
+    void PieceListRemoveWithUndo(index_t location, UndoMove& undo);
+    void SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo);
+    void MovePieceWithUndo(index_t from, index_t to, UndoMove& undo);
+    void PlaceNewPiece(index_t square, square_t contents);
+    void PlaceNewPieceWithUndo(index_t square, square_t contents, UndoMove& undo);
+    void RemovePieceWithUndo(index_t square, UndoMove& undo);
 
     square_t &Square(int rank, int file);
     
     // 0x88 board representation
     square_t m_Squares[128];
+
+    // Piece list: 2 sides * 6 pieces * 10 elements = 120
+    // (10 because there are at most 9 of any given piece, and there is an extra
+    // element needed as a terminator)
+    index_t m_PieceLocations[120];
+
     bool m_WhiteToMove = true;
     std::uint8_t m_CastlingRights = 0xF;
     index_t m_EnPassantTargetSquare = 0x7F;

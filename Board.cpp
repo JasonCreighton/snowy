@@ -400,24 +400,179 @@ void Board::SetSquare(index_t square, square_t contents) {
     m_PieceHash ^= SquareHashCode(square); // set new hash code
 }
 
-void Board::SetSquareWithUndo(index_t square, square_t contents, UndoMove &undo, int undoIndex) {
+void Board::SetSquareWithUndo(index_t square, square_t contents, UndoMove& undo) {
+    assert(undo.NumSquaresUpdated < 4);
+
     // Save square contents for undo
-    undo.Squares[undoIndex] = square;
-    undo.Contents[undoIndex] = m_Squares[square];
+    undo.Squares[undo.NumSquaresUpdated] = square;
+    undo.Contents[undo.NumSquaresUpdated] = m_Squares[square];
+    undo.NumSquaresUpdated += 1;
 
     // Modify square
     SetSquare(square, contents);
 }
 
+bool Board::PieceListsConsistentWithBoard() const {
+    int numPiecesInPieceLists = 0;
+
+    // Verify that all pieces in the piece list match the board
+    for(int color = 0; color < 2; ++color) {
+        for(int pieceNumber = 0; pieceNumber < 6; ++pieceNumber) {
+            int plIdx = PieceLocationsOffset(color == 0, pieceNumber);
+            while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+                square_t expectedPiece = ((color == 0) ? SQ_WHITE : SQ_BLACK) | (pieceNumber + 1);
+                if(m_Squares[m_PieceLocations[plIdx]] != expectedPiece) {
+                    return false;
+                }
+                ++plIdx;
+                ++numPiecesInPieceLists;
+            }
+        }
+    }
+
+    // Count the number of pieces on the board
+    int numPiecesOnBoard = 0;
+    for(int rank = 0; rank < 8; ++rank) {
+        for(int file = 0; file < 8; ++file) {
+            if(m_Squares[CoordsToIndex(rank, file)] != SQ_EMPTY) {
+                ++numPiecesOnBoard;
+            }
+        }
+    }
+
+    // Verify that there are the same number of pieces on the board and in the
+    // piece lists
+    if(numPiecesInPieceLists != numPiecesOnBoard) {
+        return false;
+    }
+
+    // No problems found
+    return true;
+}
+
+int Board::PieceLocationsOffset(bool white, int pieceNumber) const {
+    // Returns an index to the start of the piece list for the given piece
+    return (white ? 0 : 60) + (pieceNumber * 10);
+}
+
+void Board::PieceListRemoveWithUndo(index_t location, UndoMove& undo) {
+    square_t contents = m_Squares[location];
+    assert(contents != SQ_EMPTY);
+
+    // Update piece list
+    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    int piecePlIdx = -1;
+
+    while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+        if(m_PieceLocations[plIdx] == location) {
+            piecePlIdx = plIdx;
+        }
+        ++plIdx;
+    }
+
+    assert(piecePlIdx != -1);
+
+    int lastPiecePlIdx = plIdx - 1;
+
+    // To delete a piece from somewhere in the middle of the list, we move the
+    // last piece in the list to overwrite the piece we are removing, and then
+    // set the last element to PL_END_OF_LIST, which has the effect of reducing
+    // the length of the list by one
+    SetPieceLocationWithUndo(piecePlIdx, m_PieceLocations[lastPiecePlIdx], undo);
+    SetPieceLocationWithUndo(lastPiecePlIdx, PL_END_OF_LIST, undo);
+}
+
+void Board::SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo) {
+    assert(undo.NumPieceLocationsUpdated < (int)(sizeof(undo.PieceLocations)/sizeof(undo.PieceLocations[0])));
+
+    // Save old value for later undo
+    undo.PieceLocationIndexes[undo.NumPieceLocationsUpdated] = index;
+    undo.PieceLocations[undo.NumPieceLocationsUpdated] = m_PieceLocations[index];
+    undo.NumPieceLocationsUpdated += 1;
+
+    // Modify piece list
+    m_PieceLocations[index] = location;
+}
+
+void Board::MovePieceWithUndo(index_t from, index_t to, UndoMove& undo) {
+    assert(m_Squares[from] != SQ_EMPTY);
+
+    square_t fromContents = m_Squares[from];
+    int fromPiece = fromContents & SQ_PIECEMASK;
+    int plIdx = PieceLocationsOffset((fromContents & SQ_COLORMASK) == SQ_WHITE, fromPiece - 1);
+
+    // Update piece lists
+    while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+        if(m_PieceLocations[plIdx] == from) {
+            SetPieceLocationWithUndo(plIdx, to, undo);
+            break;
+        }
+        // It would be an error if we got to the last piece and we still had not
+        // found it.
+        ++plIdx;
+        assert(m_PieceLocations[plIdx] != PL_END_OF_LIST);
+    }
+
+    if(m_Squares[to] != SQ_EMPTY) {
+        // Capture
+        PieceListRemoveWithUndo(to, undo);
+    }
+
+    // Update squares
+    SetSquareWithUndo(to, fromContents, undo);
+    SetSquareWithUndo(from, SQ_EMPTY, undo);
+}
+
+void Board::PlaceNewPiece(index_t location, square_t contents) {
+    // FIXME: This method is almost identical to PlaceNewPieceWithUndo(), would be
+    // nice to refactor this somehow.
+    assert(m_Squares[location] == SQ_EMPTY);
+
+    // Update piece list
+    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    // Find end of the piece list
+    while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+        ++plIdx;
+    }
+    m_PieceLocations[plIdx] = location;
+
+    SetSquare(location, contents);
+}
+
+void Board::PlaceNewPieceWithUndo(index_t location, square_t contents, UndoMove& undo) {
+    if(m_Squares[location] != SQ_EMPTY) {
+        PieceListRemoveWithUndo(location, undo);
+    }
+
+    // Update piece list
+    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    // Find end of the piece list
+    while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+        ++plIdx;
+    }
+    SetPieceLocationWithUndo(plIdx, location, undo);
+
+    // Update square
+    SetSquareWithUndo(location, contents, undo);
+}
+
+void Board::RemovePieceWithUndo(index_t location, UndoMove& undo) {
+    // Update piece list
+    PieceListRemoveWithUndo(location, undo);
+
+    // Update square
+    SetSquareWithUndo(location, SQ_EMPTY, undo);
+}
+
 bool Board::Make(Move m) {
     assert(m.SrcSquare >= 0 && m.SrcSquare < 128);
     assert(m.DestSquare >= 0 && m.DestSquare < 128);
+    assert(PieceListsConsistentWithBoard());
 
     m_UndoStack.emplace_back();
     UndoMove& undo = m_UndoStack.back();
 
     bool legalMove = true;
-    int undoIndex = 0;
 
     bool isPawnMove = ((m_Squares[m.SrcSquare] & SQ_PIECEMASK) == SQ_PAWN);
     bool isEnPassant = isPawnMove && (m.DestSquare == m_EnPassantTargetSquare);
@@ -428,6 +583,8 @@ bool Board::Make(Move m) {
     bool capturesRook = ((m_Squares[m.DestSquare] & SQ_PIECEMASK) == SQ_ROOK);
 
     // Save undo state
+    undo.NumSquaresUpdated = 0;
+    undo.NumPieceLocationsUpdated = 0;
     undo.PliesSincePawnMoveOrCapture = m_PliesSincePawnMoveOrCapture;
     undo.EnPassantTargetSquare = m_EnPassantTargetSquare;
     undo.CastlingRights = m_CastlingRights;
@@ -439,30 +596,33 @@ bool Board::Make(Move m) {
     } else {
         ++m_PliesSincePawnMoveOrCapture;     
     }
-
-    // Handle promotion
-    square_t pieceAtDest;
-    if(isPawnMove && ((m.DestSquare >> 4) == 7 || (m.DestSquare >> 4) == 0)) {
-        pieceAtDest = (m.Promotion & SQ_PIECEMASK) | (m_WhiteToMove ? SQ_WHITE : SQ_BLACK);
-    } else {
-        pieceAtDest = m_Squares[m.SrcSquare];
-    }
-
-    // Do move
-    SetSquareWithUndo(m.DestSquare, pieceAtDest, undo, undoIndex++);
-    SetSquareWithUndo(m.SrcSquare, SQ_EMPTY, undo, undoIndex++);
-    m_EnPassantTargetSquare = 0x7F; // generally en passant will not be possible on the next move
     
-    // Handle en passant
+    // Remove captured piece, if there is one
     if(isEnPassant) {
-        // Need to remove enemy pawn from board
         int srcFile = m.SrcSquare & 0x07;
         int destFile = m.DestSquare & 0x07;
         int dfile = destFile - srcFile;
         index_t enemyPawnSquare = m.SrcSquare + dfile;
 
-        SetSquareWithUndo(enemyPawnSquare, SQ_EMPTY, undo, undoIndex++);
+        RemovePieceWithUndo(enemyPawnSquare, undo);
     }
+
+    if(isPawnMove && ((m.DestSquare >> 4) == 7 || (m.DestSquare >> 4) == 0)) {
+        // Pawn promotion
+
+        // Remove pawn
+        RemovePieceWithUndo(m.SrcSquare, undo);
+
+        // Place promoted piece
+        square_t pieceAtDest = (m.Promotion & SQ_PIECEMASK) | (m_WhiteToMove ? SQ_WHITE : SQ_BLACK);
+        PlaceNewPieceWithUndo(m.DestSquare, pieceAtDest, undo);
+    } else {
+        // Just a regular move or capture. If castling, this moves the king,
+        // the rook will be moved later.
+        MovePieceWithUndo(m.SrcSquare, m.DestSquare, undo);
+    }
+
+    m_EnPassantTargetSquare = 0x7F; // generally en passant will not be possible on the next move
     
     // Update en passant target square
     if(isPawnMove) {
@@ -483,8 +643,8 @@ bool Board::Make(Move m) {
         bool isKingSide = (m.DestSquare & 0x7) == 6;
         index_t rookSrcSquare = isKingSide ? (m.DestSquare + 1) : (m.DestSquare - 2);
 
-        SetSquareWithUndo(rookDestSquare, m_Squares[rookSrcSquare], undo, undoIndex++);
-        SetSquareWithUndo(rookSrcSquare, SQ_EMPTY, undo, undoIndex++);
+        // Move the rook
+        MovePieceWithUndo(rookSrcSquare, rookDestSquare, undo);
     }
 
     // Update castling rights
@@ -524,11 +684,6 @@ bool Board::Make(Move m) {
         }
     }
 
-    while(undoIndex < 4) {
-        // Direct the remaining undo writes to a garbage square
-        undo.Squares[undoIndex++] = 0x7F;
-    }
-
     // ALMOST done...time to actually check if this was a legal move
     // NB: We do this *before* changing m_WhiteToMove, so InCheck() looks at the
     // right player.
@@ -554,8 +709,13 @@ void Board::Unmake() {
     m_PliesSincePawnMoveOrCapture = undo.PliesSincePawnMoveOrCapture;
 
     // Set squares directly, bypassing hash updates, since we set that above
-    for(int i = 0; i < 4; ++i) {
+    for(int i = 0; i < undo.NumSquaresUpdated; ++i) {
         m_Squares[undo.Squares[i]] = undo.Contents[i];
+    }
+
+    // Restore piece lists
+    for(int i = 0; i < undo.NumPieceLocationsUpdated; ++i) {
+        m_PieceLocations[undo.PieceLocationIndexes[i]] = undo.PieceLocations[i];
     }
 
     m_UndoStack.pop_back();
@@ -573,6 +733,9 @@ void Board::ParseFen(const std::string &fen) {
     // Clear board
     memset(m_Squares, SQ_EMPTY, sizeof(m_Squares));
     m_PieceHash = 0;
+
+    // Clear piece lists
+    memset(m_PieceLocations, PL_END_OF_LIST, sizeof(m_PieceLocations));
 
     // Clear undo stack, otherwise this could grow without limit
     m_UndoStack.clear();
@@ -609,7 +772,7 @@ void Board::ParseFen(const std::string &fen) {
         }
 
         if(piece != SQ_EMPTY) {
-            SetSquare(CoordsToIndex(rank, file++), piece);
+            PlaceNewPiece(CoordsToIndex(rank, file++), piece);
         } else {
             file += skip;
         }
