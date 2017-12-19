@@ -117,46 +117,52 @@ bool Board::IsEligibleForFiftyMoveDraw() {
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
 
-    square_t expectedColorMask = m_WhiteToMove ? SQ_WHITE : SQ_BLACK;
+    // FIXME: Loops are too complicated and messy.
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        FindPawnMoves(m_PieceLocations[plIdx], out_MoveList);
+    }
 
-    for(index_t srcSquare = 0; srcSquare < 128; ++srcSquare) {
-        if((srcSquare & 0x88) == 0 && m_Squares[srcSquare] != SQ_EMPTY && (m_Squares[srcSquare] & SQ_COLORMASK) == expectedColorMask)  {
-            square_t piece = m_Squares[srcSquare];
-            switch(piece & SQ_PIECEMASK) {
-                case SQ_PAWN:
-                    FindPawnMoves(srcSquare, out_MoveList);
-                    break;
-                case SQ_ROOK:
-                    for(int vector : ORTHOGONAL_VECTORS) {
-                        FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
-                    }
-                    break;
-                case SQ_KNIGHT:
-                    for(int vector : KNIGHT_VECTORS) {
-                        FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
-                    }
-                    break;
-                case SQ_BISHOP:
-                    for(int vector : DIAGONAL_VECTORS) {
-                        FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
-                    }
-                    break;
-                case SQ_QUEEN:
-                    for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-                        FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
-                    }
-                    break;
-                case SQ_KING:
-                    for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-                        FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
-                    }
-
-                    // Check for castling
-                    FindCastlingMoves(srcSquare, out_MoveList);
-
-                    break;
-            }
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        index_t srcSquare = m_PieceLocations[plIdx];
+        square_t piece = m_Squares[srcSquare];
+        for(int vector : KNIGHT_VECTORS) {
+            FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
         }
+    }
+
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_BISHOP-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        index_t srcSquare = m_PieceLocations[plIdx];
+        square_t piece = m_Squares[srcSquare];
+        for(int vector : DIAGONAL_VECTORS) {
+            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+        }
+    }
+
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_ROOK-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        index_t srcSquare = m_PieceLocations[plIdx];
+        square_t piece = m_Squares[srcSquare];
+        for(int vector : ORTHOGONAL_VECTORS) {
+            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+        }
+    }
+
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_QUEEN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        index_t srcSquare = m_PieceLocations[plIdx];
+        square_t piece = m_Squares[srcSquare];
+        for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
+            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+        }
+    }
+
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KING-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        index_t srcSquare = m_PieceLocations[plIdx];
+        square_t piece = m_Squares[srcSquare];
+        for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
+            FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
+        }
+
+        // Check for castling
+        FindCastlingMoves(srcSquare, out_MoveList);
     }
 }
 
