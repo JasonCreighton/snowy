@@ -850,12 +850,20 @@ int Board::StaticEvaluation() {
     int kingFile[2] = {-1, -1};
 
     // Piece square tables and counting pawns on files
-    for(int rank = 0; rank < 8; ++rank) {
-        for(int file = 0; file < 8; ++file) {
-            square_t piece = m_Squares[CoordsToIndex(rank, file)];
-            if(piece != SQ_EMPTY) {
-                int colorIdx = (piece & SQ_COLORMASK) == SQ_WHITE ? 0 : 1;
-                int pieceIdx = (piece & SQ_PIECEMASK) - 1;
+    // TODO: We're could be using piece lists more effectively here. We don't
+    // need to save the locations of the kings anymore, and we could have special
+    // loops to process only the pawns, etc.
+    for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
+        for(int pieceIdx = 0; pieceIdx < 6; ++pieceIdx) {
+            int plIdx = PieceLocationsOffset(colorIdx == 0, pieceIdx);
+
+            while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
+                index_t location = m_PieceLocations[plIdx];
+                square_t piece = m_Squares[location];
+                assert(piece != SQ_EMPTY);
+
+                int rank = (location >> 4) & 0x7;
+                int file = (location >> 0) & 0x7;
                 int squareIdx;
                 if(colorIdx == 0) {
                     // white
@@ -879,6 +887,8 @@ int Board::StaticEvaluation() {
                     kingRank[colorIdx] = rank;
                     kingFile[colorIdx] = file;
                 }
+
+                ++plIdx;
             }
         }
     }
