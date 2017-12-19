@@ -1000,21 +1000,16 @@ std::vector<int> Board::EvaluationFeatures() {
 }
 
 bool Board::InCheck() {
-    square_t myKing = (m_WhiteToMove ? SQ_WHITE : SQ_BLACK) | SQ_KING;
-    // FIXME: Shouldn't have to scan the whole board to find our king
-    for(int rank = 0; rank < 8; ++rank) {
-        for(int file = 0; file < 8; ++file) {
-            square_t index = CoordsToIndex(rank, file);
-            if(m_Squares[index] == myKing) {
-                return IsAttacked(index);
-            }
-        }
-    }
+    // FIXME: SQ_KING - 1 is an ugly construct, and there are other places that
+    // play fast and loose with "piece numbers" vs the SQ_ constants. Need to
+    // harnomize the various usages somehow.
+    int kingPlIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KING - 1);
 
-    // Should never get here
-    assert(false);
+    // There should be exactly one king
+    assert(m_PieceLocations[kingPlIdx] != PL_END_OF_LIST);
+    assert(m_PieceLocations[kingPlIdx+1] == PL_END_OF_LIST);
 
-    return false;
+    return IsAttacked(m_PieceLocations[kingPlIdx]);
 }
 
 Board::Move Board::ParseMove(const std::string &moveStr) {
