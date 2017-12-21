@@ -813,11 +813,11 @@ void Board::ParseFen(const std::string &fen) {
         ++i;
         m_EnPassantTargetSquare = 0x7F;
     } else {
-        char rankLetter = fen[i++];
-        char fileNumber = fen[i++];
+        char fileLetter = fen[i++];
+        char rankNumber = fen[i++];
         // TODO: Should check that these characters are in the expected range
-        int enPassantRank = rankLetter - 'a';
-        int enPassantFile = fileNumber - '1';
+        int enPassantRank = rankNumber - '1';
+        int enPassantFile = fileLetter - 'a';
         m_EnPassantTargetSquare = CoordsToIndex(enPassantRank, enPassantFile);
     }
 
@@ -1103,6 +1103,13 @@ void Board::Test() {
 
         // Hash should have reverted back to the pre-move value
         assert(board.Hash() == originalHash);
+    }
+
+    // En passant square
+    {
+        Board board;
+        board.ParseFen("r1bqnrk1/pp2npbp/3p2p1/2pPp3/2P1P3/2N1B3/PP2BPPP/R2QNRK1 w - c6");
+        assert(board.m_EnPassantTargetSquare == 0x52);
     }
 #endif
 }
