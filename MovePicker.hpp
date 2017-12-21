@@ -14,7 +14,7 @@ public:
     bool Next(Board::Move& out_move);
 
 private:
-    enum class Phase { HASH_MOVE, GENERATE_MOVES, READ_MOVES };
+    enum class Phase { HASH_MOVE, GENERATE_MOVES, READ_MOVES, READ_MOVES_WITHOUT_SORT };
 
     Board& m_Board;
     std::vector<Board::Move>& m_MoveList;

@@ -54,18 +54,40 @@ bool MovePicker::Next(Board::Move &out_move) {
             }
 
             // Selection sort
-            int maxScore = m_MoveList[m_MoveIndex].Score;
-            int maxIndex = m_MoveIndex;
-            for(int i = m_MoveIndex + 1; i < (int)m_MoveList.size(); ++i) {
-                if(m_MoveList[i].Score > maxScore) {
-                    maxScore = m_MoveList[i].Score;
-                    maxIndex = i;
+            {
+                int maxScore = 0;
+                int maxIndex = -1;
+                for(int i = m_MoveIndex; i < (int)m_MoveList.size(); ++i) {
+                    if(m_MoveList[i].Score > maxScore) {
+                        maxScore = m_MoveList[i].Score;
+                        maxIndex = i;
+                    }
                 }
+
+                if(maxIndex == -1) {
+                    // We didn't find any moves with non-zero score, we don't have to
+                    // keep trying to sort next time.
+                    m_Phase = Phase::READ_MOVES_WITHOUT_SORT;
+
+                    // Just pick an arbitrary move to return
+                    maxIndex = m_MoveIndex;
+                }
+
+                out_move = m_MoveList[maxIndex];
+                std::swap(m_MoveList[maxIndex], m_MoveList[m_MoveIndex]);
+                ++m_MoveIndex;
+            }
+            return true;            
+            break;
+        case Phase::READ_MOVES_WITHOUT_SORT:
+            assert(m_MoveIndex <= (int)m_MoveList.size());
+
+            if(m_MoveIndex == (int)m_MoveList.size()) {
+                // No more moves
+                return false;
             }
 
-            out_move = m_MoveList[maxIndex];
-            std::swap(m_MoveList[maxIndex], m_MoveList[m_MoveIndex]);
-            ++m_MoveIndex;
+            out_move = m_MoveList[m_MoveIndex++];
             return true;
             break;
     }
