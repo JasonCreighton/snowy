@@ -108,6 +108,7 @@ private:
         square_t OldValue;
     };
 
+    void MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare);
     void FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool movementAllowed, bool capturesAllowed, bool promotionAllowed, std::vector<Move> &out_MoveList);
     void FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList);

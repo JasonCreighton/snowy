@@ -650,6 +650,8 @@ bool Board::Make(Move m) {
         index_t rookSrcSquare = isKingSide ? (m.DestSquare + 1) : (m.DestSquare - 2);
 
         // Move the rook
+        assert(m_Squares[rookSrcSquare] == (SQ_ROOK | (m_WhiteToMove ? SQ_WHITE : SQ_BLACK)));
+        assert(m_Squares[rookDestSquare] == SQ_EMPTY);
         MovePieceWithUndo(rookSrcSquare, rookDestSquare, undo);
     }
 
@@ -664,29 +666,15 @@ bool Board::Make(Move m) {
 
     // Handle rook moves or captures that remove castling rights
     {
-        square_t rookSquare = 0x7F;
-        bool considerWhite;
         if(isRookMove) {
-            rookSquare = m.SrcSquare;
-            considerWhite = m_WhiteToMove;
-        } else if (capturesRook) {
-            rookSquare = m.DestSquare;
-            considerWhite = !m_WhiteToMove;
+            // We can't castle using a rook that is moved
+            MarkRookIneligibleForCastling(m_WhiteToMove, m.SrcSquare);
         }
-        if((rookSquare & 0x88) == 0) {
-            if(considerWhite) {
-                if(rookSquare == 0x00) {
-                    m_CastlingRights &= ~CR_WHITE_QUEEN_SIDE;
-                } else if (rookSquare == 0x07) {
-                    m_CastlingRights &= ~CR_WHITE_KING_SIDE;
-                }
-            } else {
-                if(rookSquare == 0x70) {
-                    m_CastlingRights &= ~CR_BLACK_QUEEN_SIDE;
-                } else if (rookSquare == 0x77) {
-                    m_CastlingRights &= ~CR_BLACK_KING_SIDE;
-                }
-            }
+        
+        if (capturesRook) {
+            // We can't castle using a rook that was captured (even if another
+            // rook ends up on the same square later, with the king unmoved)
+            MarkRookIneligibleForCastling(!m_WhiteToMove, m.DestSquare);
         }
     }
 
@@ -725,6 +713,24 @@ void Board::Unmake() {
     }
 
     m_UndoStack.pop_back();
+}
+
+void Board::MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare) {
+    // Note that rookSquare doesn't have to be a corner square, in which case
+    // we do nothing.
+    if(rookIsWhite) {
+        if(rookSquare == 0x00) {
+            m_CastlingRights &= ~CR_WHITE_QUEEN_SIDE;
+        } else if (rookSquare == 0x07) {
+            m_CastlingRights &= ~CR_WHITE_KING_SIDE;
+        }
+    } else {
+        if(rookSquare == 0x70) {
+            m_CastlingRights &= ~CR_BLACK_QUEEN_SIDE;
+        } else if (rookSquare == 0x77) {
+            m_CastlingRights &= ~CR_BLACK_KING_SIDE;
+        }
+    }
 }
 
 Board::index_t Board::CoordsToIndex(int rank, int file) {
@@ -1110,6 +1116,18 @@ void Board::Test() {
         Board board;
         board.ParseFen("r1bqnrk1/pp2npbp/3p2p1/2pPp3/2P1P3/2N1B3/PP2BPPP/R2QNRK1 w - c6");
         assert(board.m_EnPassantTargetSquare == 0x52);
+    }
+
+    // Castling rights
+    {
+        Board board;
+        board.ParseFen("r2qk2r/1b3ppp/2pbpn2/8/1p1P4/3BPN2/1P3PPP/R1BQ1RK1 w kq - 0 1");
+        assert(board.m_CastlingRights == (CR_BLACK_KING_SIDE | CR_BLACK_QUEEN_SIDE));
+
+        board.Make(Board::ParseMove("a1a8"));
+
+        // Should remove castling rights even if rook captures rook
+        assert(board.m_CastlingRights == CR_BLACK_KING_SIDE);
     }
 #endif
 }
