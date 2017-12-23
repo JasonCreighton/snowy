@@ -38,6 +38,11 @@ public:
         _END_SENTINEL,
     };
     static const int NUM_FEATURES = (int)Feature::_END_SENTINEL;
+
+    static const int GEN_CAPTURES = 0x1;
+    static const int GEN_NONCAPTURES = 0x2;
+    static const int GEN_PROMOTIONS = 0x4;
+    static const int GEN_ALL = GEN_CAPTURES | GEN_NONCAPTURES | GEN_PROMOTIONS;
     
     static void Test();    
 
@@ -47,6 +52,7 @@ public:
     
     Zobrist::hash_t Hash() const;
     void FindPseudoLegalMoves(std::vector<Move> &out_MoveList);
+    void FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveList);
     bool Make(Move m);
     void Unmake();
     static index_t CoordsToIndex(int rank, int file);
@@ -109,8 +115,8 @@ private:
     };
 
     void MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare);
-    void FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool movementAllowed, bool capturesAllowed, bool promotionAllowed, std::vector<Move> &out_MoveList);
-    void FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
+    void FindMovesInDirection(int generateFlags, square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
+    void FindPawnMoves(int generateFlags, index_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMovesHelper(index_t kingStartSquare, int kingMovementDirection, index_t rookStartSquare, std::vector<Move> &out_MoveList);
     bool IsAttacked(index_t square);

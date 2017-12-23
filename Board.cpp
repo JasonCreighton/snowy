@@ -115,18 +115,22 @@ bool Board::IsEligibleForFiftyMoveDraw() {
 }
 
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
+    FindPseudoLegalMoves(GEN_ALL, out_MoveList);
+}
+
+void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
 
     // FIXME: Loops are too complicated and messy.
     for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        FindPawnMoves(m_PieceLocations[plIdx], out_MoveList);
+        FindPawnMoves(generateFlags, m_PieceLocations[plIdx], out_MoveList);
     }
 
     for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : KNIGHT_VECTORS) {
-            FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
+            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 1, false, out_MoveList);
         }
     }
 
@@ -134,7 +138,7 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : DIAGONAL_VECTORS) {
-            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -142,7 +146,7 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_VECTORS) {
-            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -150,7 +154,7 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection(piece, srcSquare, vector, 8, true, true, false, out_MoveList);
+            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -158,15 +162,17 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection(piece, srcSquare, vector, 1, true, true, false, out_MoveList);
+            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 1, false, out_MoveList);
         }
 
         // Check for castling
-        FindCastlingMoves(srcSquare, out_MoveList);
+        if(generateFlags & GEN_NONCAPTURES) {
+            FindCastlingMoves(srcSquare, out_MoveList);
+        }
     }
 }
 
-void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool movementAllowed, bool capturesAllowed, bool promotionAllowed, std::vector<Move> &out_MoveList) {
+void Board::FindMovesInDirection(int generateFlags, square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
     for(index_t destSquare = srcSquare + direction; (destSquare & 0x88) == 0 && slideDistance > 0; destSquare += direction, --slideDistance) {
         square_t destContents = m_Squares[destSquare];
         bool isCapture = false;
@@ -181,12 +187,18 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
             isCapture = true;
         }
 
-        if(isCapture && !capturesAllowed) {
-            break;
-        }
-
-        if(!isCapture && !movementAllowed) {
-            break;
+        bool generateMove =
+            ((generateFlags & GEN_CAPTURES) && isCapture) ||
+            ((generateFlags & GEN_NONCAPTURES) && !isCapture);
+        
+        if(!generateMove) {
+            if(isCapture) {
+                // We can't keep sliding through a piece
+                break;
+            } else {
+                // There might be an allowed capture later
+                continue;                
+            }
         }
 
         // Should not be able to capture an empty square or a king
@@ -212,7 +224,7 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
             m.Score = MVV + LVA;
         }
 
-        if(promotionAllowed) {
+        if(isPromotion) {
             square_t pieces[4] = {SQ_BISHOP, SQ_KNIGHT, SQ_ROOK, SQ_QUEEN};
             for(square_t piece : pieces) {
                 m.Promotion = piece;
@@ -228,14 +240,13 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
             out_MoveList.push_back(m);
         }
         
-
         if(isCapture) {
             break;
         }
     }
 }
 
-void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
+void Board::FindPawnMoves(int generateFlags, index_t srcSquare, std::vector<Move> &out_MoveList) {
     int startingRank;
     int promotionRank;
     int movementDirection;
@@ -256,13 +267,24 @@ void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
         movementDistance = 2;
     }
 
-    bool promotionAllowed = (((srcSquare + movementDirection) >> 4) == promotionRank);
+
+    bool isPromotion = (((srcSquare + movementDirection) >> 4) == promotionRank);
+    int effectiveGenerateFlags = generateFlags;
+    if(isPromotion && (generateFlags & GEN_PROMOTIONS)) {
+        // GEN_PROMOTIONS is handled a little special: We generate all
+        // promotions, capturing and non-capturing, regardless of whether that
+        // particular type of move would otherwise be generated.
+        effectiveGenerateFlags |= GEN_CAPTURES | GEN_NONCAPTURES;
+    }
+    int movementGenerateFlags = effectiveGenerateFlags & GEN_NONCAPTURES;
+    int captureGenerateFlags = effectiveGenerateFlags & GEN_CAPTURES;
+
     // Movement
-    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, true, false, promotionAllowed, out_MoveList);
+    FindMovesInDirection(movementGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
 
     // Captures
-    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, false, true, promotionAllowed, out_MoveList);
-    FindMovesInDirection(m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, false, true, promotionAllowed, out_MoveList);
+    FindMovesInDirection(captureGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
+    FindMovesInDirection(captureGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
 
     // En Passant
     for(int dfile = -1; dfile <= 1; dfile += 2) {

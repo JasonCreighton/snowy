@@ -268,7 +268,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
             }
         }
 
-        MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
+        MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0], Board::GEN_ALL);
 
         int numLegalMoves = 0;
         bool alphaWasImproved = false;
@@ -419,12 +419,10 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
         alpha = standPatScore;
     }
 
-    MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
+    MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0], Board::GEN_CAPTURES | Board::GEN_PROMOTIONS);
     Board::Move move;
     while(movePicker.Next(move)) {
-        // Only consider capturing moves and promotions
-        bool considerMove = move.IsCapture || move.Promotion != 0; // FIXME: Should I expose private Board constants to check against here?
-        if(considerMove && m_Board.Make(move)) {
+        if(m_Board.Make(move)) {
             ++m_NumQuiesceNodes;
 
             int moveScore = -Quiesce(-beta, -alpha, plyIndex + 1);

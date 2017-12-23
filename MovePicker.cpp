@@ -7,10 +7,11 @@
 #include <vector>
 #include <cassert>
 
-MovePicker::MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray) :
+MovePicker::MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray, int generateFlags) :
     m_Board(board),
     m_MoveList(moveList),
     m_KillersArray(killersArray),
+    m_GenerateFlags(generateFlags),
     m_Phase(Phase::GENERATE_MOVES),
     m_HashMove(),
     m_MoveIndex(0) {
@@ -30,7 +31,7 @@ bool MovePicker::Next(Board::Move &out_move) {
             break;
 
         case Phase::GENERATE_MOVES:
-            m_Board.FindPseudoLegalMoves(m_MoveList);
+            m_Board.FindPseudoLegalMoves(m_GenerateFlags, m_MoveList);
 
             // Boost killers above other quiet moves
             for(auto& move : m_MoveList) {

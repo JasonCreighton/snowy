@@ -9,7 +9,7 @@
 
 class MovePicker {
 public:
-    MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray);
+    MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray, int generateFlags);
     void SetHashMove(Board::Move move);
     bool Next(Board::Move& out_move);
 
@@ -19,6 +19,7 @@ private:
     Board& m_Board;
     std::vector<Board::Move>& m_MoveList;
     Board::Move* m_KillersArray; // XXX This is ugly, need a better way to share the "killers"
+    int m_GenerateFlags;
     Phase m_Phase;
     Board::Move m_HashMove;
     int m_MoveIndex;
