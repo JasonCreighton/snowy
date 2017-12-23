@@ -123,9 +123,9 @@ private:
     void PieceListRemoveWithUndo(index_t location, UndoMove& undo);
     void SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo);
     void MovePieceWithUndo(index_t from, index_t to, UndoMove& undo);
-    void PlaceNewPiece(index_t square, square_t contents);
-    void PlaceNewPieceWithUndo(index_t square, square_t contents, UndoMove& undo);
-    void RemovePieceWithUndo(index_t square, UndoMove& undo);
+    void PlaceNewPiece(index_t location, square_t contents);
+    void PlaceNewPieceWithUndo(index_t location, square_t contents, UndoMove& undo);
+    void RemovePieceWithUndo(index_t location, UndoMove& undo);
 
     square_t &Square(int rank, int file);
     
