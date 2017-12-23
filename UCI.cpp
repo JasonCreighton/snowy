@@ -12,6 +12,7 @@
 #include <string>
 #include <sstream>
 #include <list>
+#include <cassert>
 
 // In case someone wants to use a different build environment
 #ifndef GIT_VERSION
@@ -45,6 +46,7 @@ namespace {
 }
 
 UCI::UCI() : m_Search(m_Board) {
+    SetHashTableSize(DEFAULT_HASH_TABLE_SIZE_MB);
 }
 
 void UCI::Run() {
@@ -68,7 +70,32 @@ bool UCI::DoCommand(const std::string& commandLine) {
     if(command == "uci") {
         IO::PutLine("id name Snowy " GIT_VERSION);
         IO::PutLine("id author Jason Creighton");
+        IO::PutLine("option name Hash type spin default " + std::to_string(DEFAULT_HASH_TABLE_SIZE_MB) +
+                    " min " + std::to_string(MIN_HASH_TABLE_SIZE_MB) +
+                    " max " + std::to_string(MAX_HASH_TABLE_SIZE_MB));
         IO::PutLine("uciok");
+    } else if(command == "setoption") {
+        std::string constantName;
+
+        lineStream >> constantName;
+
+        if(constantName == "name") {
+            std::string name;
+            std::string constantValue;
+            std::string value;
+
+            lineStream >> name;
+            lineStream >> constantValue;
+            lineStream >> value;
+
+            if(constantValue != "value") {
+                IO::PutInfo("Error parsing setoption: Expected \"value\"");
+            }
+            
+            SetOption(name, value);
+        } else {
+            IO::PutInfo("Error parsing setoption: Expected \"name\"");
+        }
     } else if(command == "position") {
         m_Search.WaitForSearch();
 
@@ -212,4 +239,37 @@ bool UCI::DoCommand(const std::string& commandLine) {
 void UCI::WaitForSearch() {
     // Man, I hate dumb little wrappers like this. There must be a better way.
     m_Search.WaitForSearch();
+}
+
+void UCI::SetOption(const std::string& name, const std::string& value) {
+    if(name == "Hash") {
+        int megabytes;        
+        std::stringstream valueStream(value);
+        valueStream >> megabytes;
+
+        if(megabytes > MAX_HASH_TABLE_SIZE_MB) {
+            megabytes = MAX_HASH_TABLE_SIZE_MB;
+        }
+
+        if(megabytes < MIN_HASH_TABLE_SIZE_MB) {
+            megabytes = MIN_HASH_TABLE_SIZE_MB;
+        }
+
+        SetHashTableSize(megabytes);
+    } else {
+        IO::PutInfo("Unknown option \"" + name + "\"");
+    }
+}
+
+void UCI::SetHashTableSize(int megabytes) {
+    assert(megabytes >= 1);
+
+    int megabytesLog2 = -1;
+    while(megabytes != 0) {
+        megabytes >>= 1;
+        ++megabytesLog2;
+    }
+
+    int bytesLog2 = megabytesLog2 + 20;
+    m_Search.SetHashTableSize(bytesLog2);
 }

@@ -29,7 +29,7 @@ Search::Search(Board &board) :
     m_NumMainNodes(0),
     m_NumQuiesceNodes(0),
     m_Plies(MAX_PLY),
-    m_TT(20)
+    m_TT(10) // it's expected that the hash table will get resized right away
 {
     // Spawn worker thread
     m_WorkerThread = std::thread(&Search::WorkerThreadMain, this);
@@ -557,6 +557,10 @@ long Search::Perft(int depth, int plyIndex) {
     }
 
     return nodes;
+}
+
+void Search::SetHashTableSize(int bytesLog2) {
+    m_TT.Resize(bytesLog2);
 }
 
 void Search::Test() {

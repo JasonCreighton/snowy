@@ -10,10 +10,21 @@
 #include <cassert>
 #include <limits>
 
-TranspositionTable::TranspositionTable(int sizeLog2) :
-    m_Now(0),
-    m_HashMask((1 << sizeLog2) - 1),
-    m_Table(1 << sizeLog2) {
+TranspositionTable::TranspositionTable(int bytesLog2) :
+    m_Now(0)
+{
+    Resize(bytesLog2);
+}
+
+void TranspositionTable::Resize(int bytesLog2) {
+    std::size_t numBytes = 1 << bytesLog2;
+    std::size_t numBuckets = numBytes / sizeof(Bucket);
+    assert(numBuckets > 0);
+    
+    m_HashMask = numBuckets - 1;
+
+    m_Table.resize(numBuckets);
+    m_Table.shrink_to_fit();
 }
 
 void TranspositionTable::Insert(Zobrist::hash_t hash, int score, ScoreBound bound, int depth, int ply, const Board::Move *move) {

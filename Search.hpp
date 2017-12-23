@@ -34,6 +34,7 @@ public:
     void WaitForSearch();
     int Quiesce();
     long Perft(int depth);
+    void SetHashTableSize(int bytesLog2);
 
 private:
     struct Ply {
