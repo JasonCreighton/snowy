@@ -7,22 +7,24 @@
 #include <vector>
 #include <cassert>
 
-MovePicker::MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray, int generateFlags) :
+template<int GenFlags>
+MovePicker<GenFlags>::MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray) :
     m_Board(board),
     m_MoveList(moveList),
     m_KillersArray(killersArray),
-    m_GenerateFlags(generateFlags),
     m_Phase(Phase::GENERATE_MOVES),
     m_HashMove(),
     m_MoveIndex(0) {
 }
 
-void MovePicker::SetHashMove(Board::Move move) {
+template<int GenFlags>
+void MovePicker<GenFlags>::SetHashMove(Board::Move move) {
     m_HashMove = move;
     m_Phase = Phase::HASH_MOVE;
 }
 
-bool MovePicker::Next(Board::Move &out_move) {
+template<int GenFlags>
+bool MovePicker<GenFlags>::Next(Board::Move &out_move) {
     switch(m_Phase) {
         case Phase::HASH_MOVE:
             out_move = m_HashMove;
@@ -31,7 +33,7 @@ bool MovePicker::Next(Board::Move &out_move) {
             break;
 
         case Phase::GENERATE_MOVES:
-            m_Board.FindPseudoLegalMoves(m_GenerateFlags, m_MoveList);
+            m_Board.FindPseudoLegalMoves<GenFlags>(m_MoveList);
 
             // Boost killers above other quiet moves
             for(auto& move : m_MoveList) {
@@ -98,3 +100,8 @@ bool MovePicker::Next(Board::Move &out_move) {
 
     return false;
 }
+
+
+// Template instantiations
+template class MovePicker<Board::GEN_ALL>;
+template class MovePicker<Board::GEN_CAPTURES | Board::GEN_PROMOTIONS>;

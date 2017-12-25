@@ -268,7 +268,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
             }
         }
 
-        MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0], Board::GEN_ALL);
+        MovePicker<Board::GEN_ALL> movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
 
         int numLegalMoves = 0;
         bool alphaWasImproved = false;
@@ -419,7 +419,7 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
         alpha = standPatScore;
     }
 
-    MovePicker movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0], Board::GEN_CAPTURES | Board::GEN_PROMOTIONS);
+    MovePicker<Board::GEN_CAPTURES | Board::GEN_PROMOTIONS> movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
     Board::Move move;
     while(movePicker.Next(move)) {
         if(m_Board.Make(move)) {

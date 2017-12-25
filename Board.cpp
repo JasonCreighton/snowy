@@ -114,23 +114,20 @@ bool Board::IsEligibleForFiftyMoveDraw() {
     return m_PliesSincePawnMoveOrCapture >= 100;
 }
 
+template<int GenFlags>
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
-    FindPseudoLegalMoves(GEN_ALL, out_MoveList);
-}
-
-void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
 
     // FIXME: Loops are too complicated and messy.
     for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        FindPawnMoves(generateFlags, m_PieceLocations[plIdx], out_MoveList);
+        FindPawnMoves<GenFlags>(m_PieceLocations[plIdx], out_MoveList);
     }
 
     for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : KNIGHT_VECTORS) {
-            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 1, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
         }
     }
 
@@ -138,7 +135,7 @@ void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveL
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : DIAGONAL_VECTORS) {
-            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -146,7 +143,7 @@ void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveL
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_VECTORS) {
-            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -154,7 +151,7 @@ void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveL
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
@@ -162,17 +159,18 @@ void Board::FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveL
         index_t srcSquare = m_PieceLocations[plIdx];
         square_t piece = m_Squares[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection(generateFlags, piece, srcSquare, vector, 1, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
         }
 
         // Check for castling
-        if(generateFlags & GEN_NONCAPTURES) {
+        if(GenFlags & GEN_NONCAPTURES) {
             FindCastlingMoves(srcSquare, out_MoveList);
         }
     }
 }
 
-void Board::FindMovesInDirection(int generateFlags, square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
+template<int GenFlags>
+void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
     for(index_t destSquare = srcSquare + direction; (destSquare & 0x88) == 0 && slideDistance > 0; destSquare += direction, --slideDistance) {
         square_t destContents = m_Squares[destSquare];
         bool isCapture = false;
@@ -188,8 +186,8 @@ void Board::FindMovesInDirection(int generateFlags, square_t piece, index_t srcS
         }
 
         bool generateMove =
-            ((generateFlags & GEN_CAPTURES) && isCapture) ||
-            ((generateFlags & GEN_NONCAPTURES) && !isCapture);
+            ((GenFlags & GEN_CAPTURES) && isCapture) ||
+            ((GenFlags & GEN_NONCAPTURES) && !isCapture);
         
         if(!generateMove) {
             if(isCapture) {
@@ -246,7 +244,8 @@ void Board::FindMovesInDirection(int generateFlags, square_t piece, index_t srcS
     }
 }
 
-void Board::FindPawnMoves(int generateFlags, index_t srcSquare, std::vector<Move> &out_MoveList) {
+template<int GenFlags>
+void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
     int startingRank;
     int promotionRank;
     int movementDirection;
@@ -267,24 +266,23 @@ void Board::FindPawnMoves(int generateFlags, index_t srcSquare, std::vector<Move
         movementDistance = 2;
     }
 
-
     bool isPromotion = (((srcSquare + movementDirection) >> 4) == promotionRank);
-    int effectiveGenerateFlags = generateFlags;
-    if(isPromotion && (generateFlags & GEN_PROMOTIONS)) {
-        // GEN_PROMOTIONS is handled a little special: We generate all
-        // promotions, capturing and non-capturing, regardless of whether that
-        // particular type of move would otherwise be generated.
-        effectiveGenerateFlags |= GEN_CAPTURES | GEN_NONCAPTURES;
+
+    // GEN_PROMOTIONS is handled a little special: We generate all
+    // promotions, capturing and non-capturing, regardless of whether that
+    // particular type of move would otherwise be generated.
+    bool generateAll = isPromotion && (GenFlags & GEN_PROMOTIONS);
+    bool generateMovement = (GenFlags & GEN_NONCAPTURES) || generateAll;
+    bool generateCaptures = (GenFlags & GEN_CAPTURES) || generateAll;
+
+    if(generateMovement) {
+        FindMovesInDirection<GEN_NONCAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
     }
-    int movementGenerateFlags = effectiveGenerateFlags & GEN_NONCAPTURES;
-    int captureGenerateFlags = effectiveGenerateFlags & GEN_CAPTURES;
 
-    // Movement
-    FindMovesInDirection(movementGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
-
-    // Captures
-    FindMovesInDirection(captureGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
-    FindMovesInDirection(captureGenerateFlags, m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
+    if(generateCaptures) {
+        FindMovesInDirection<GEN_CAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_CAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
+    }
 
     // En Passant
     for(int dfile = -1; dfile <= 1; dfile += 2) {
@@ -1153,3 +1151,7 @@ void Board::Test() {
     }
 #endif
 }
+
+// Template instantiations
+template void Board::FindPseudoLegalMoves<Board::GEN_ALL>(std::vector<Board::Move> &out_MoveList);
+template void Board::FindPseudoLegalMoves<Board::GEN_CAPTURES | Board::GEN_PROMOTIONS>(std::vector<Board::Move> &out_MoveList);

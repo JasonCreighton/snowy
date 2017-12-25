@@ -51,8 +51,10 @@ public:
     void Print();
     
     Zobrist::hash_t Hash() const;
+
+    template<int GenFlags = GEN_ALL>
     void FindPseudoLegalMoves(std::vector<Move> &out_MoveList);
-    void FindPseudoLegalMoves(int generateFlags, std::vector<Move> &out_MoveList);
+
     bool Make(Move m);
     void Unmake();
     static index_t CoordsToIndex(int rank, int file);
@@ -114,9 +116,13 @@ private:
         square_t OldValue;
     };
 
+    template<int GenFlags>
+    void FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
+
+    template<int GenFlags>
+    void FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
+
     void MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare);
-    void FindMovesInDirection(int generateFlags, square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
-    void FindPawnMoves(int generateFlags, index_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMovesHelper(index_t kingStartSquare, int kingMovementDirection, index_t rookStartSquare, std::vector<Move> &out_MoveList);
     bool IsAttacked(index_t square);
