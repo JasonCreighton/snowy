@@ -17,7 +17,7 @@ TranspositionTable::TranspositionTable(int bytesLog2) :
 }
 
 void TranspositionTable::Resize(int bytesLog2) {
-    std::size_t numBytes = 1 << bytesLog2;
+    std::size_t numBytes = static_cast<std::size_t>(1) << bytesLog2;
     std::size_t numBuckets = numBytes / sizeof(Bucket);
     assert(numBuckets > 0);
     
