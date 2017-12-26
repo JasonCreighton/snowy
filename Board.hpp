@@ -54,7 +54,6 @@ public:
 
     bool Make(Move m);
     void Unmake();
-    static square_t CoordsToIndex(int rank, int file);
     void ParseFen(const std::string &fen);
     int StaticEvaluation();
     std::vector<int> EvaluationFeatures();
@@ -118,7 +117,8 @@ private:
 
     template<int GenFlags>
     void FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
-
+    
+    static square_t CoordsToIndex(int rank, int file);
     void MarkRookIneligibleForCastling(bool rookIsWhite, piece_t rookSquare);
     void FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList);
