@@ -33,9 +33,9 @@ private:
         std::int16_t Score;
         std::int8_t Depth;
         std::uint8_t Timestamp;
-        Board::index_t SrcSquare;
-        Board::index_t DestSquare;
-        Board::square_t Promotion;
+        Board::square_t SrcSquare;
+        Board::square_t DestSquare;
+        Board::piece_t Promotion;
         // bitfield stuff, otherwise we don't have room
         // Note: gcc always warns on using an enum as a bitfield:
         // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61414

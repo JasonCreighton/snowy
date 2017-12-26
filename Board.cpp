@@ -46,9 +46,9 @@ void Board::Print() {
     for(int rank = 7; rank >= 0; --rank) {
         std::string line = std::to_string(rank + 1) + " ";
         for(int file = 0; file < 8; ++file) {
-            square_t square = Square(rank, file);
-            char piece = pieceMap[square & SQ_PIECEMASK];
-            if(square != SQ_EMPTY && (square & SQ_COLORMASK) == SQ_BLACK) {
+            piece_t square = PieceOn(rank, file);
+            char piece = pieceMap[square & PC_PIECEMASK];
+            if(square != PC_NONE && (square & PC_COLORMASK) == PC_BLACK) {
                 // HACKY
                 piece = (char)std::tolower((int)piece);
             }
@@ -74,8 +74,8 @@ Zobrist::hash_t Board::Hash() const {
         (enPassantAvailable ? Zobrist::EnPassantFile[enPassantFile] : 0);
 }
 
-Board::square_t &Board::Square(int rank, int file) {
-    return m_Squares[(rank << 4) | file];
+Board::piece_t &Board::PieceOn(int rank, int file) {
+    return m_Pieces[(rank << 4) | file];
 }
 
 bool Board::WhiteToMove() {
@@ -119,45 +119,45 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
 
     // FIXME: Loops are too complicated and messy.
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
         FindPawnMoves<GenFlags>(m_PieceLocations[plIdx], out_MoveList);
     }
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        index_t srcSquare = m_PieceLocations[plIdx];
-        square_t piece = m_Squares[srcSquare];
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        square_t srcSquare = m_PieceLocations[plIdx];
+        piece_t piece = m_Pieces[srcSquare];
         for(int vector : KNIGHT_VECTORS) {
             FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
         }
     }
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_BISHOP-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        index_t srcSquare = m_PieceLocations[plIdx];
-        square_t piece = m_Squares[srcSquare];
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_BISHOP-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        square_t srcSquare = m_PieceLocations[plIdx];
+        piece_t piece = m_Pieces[srcSquare];
         for(int vector : DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_ROOK-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        index_t srcSquare = m_PieceLocations[plIdx];
-        square_t piece = m_Squares[srcSquare];
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_ROOK-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        square_t srcSquare = m_PieceLocations[plIdx];
+        piece_t piece = m_Pieces[srcSquare];
         for(int vector : ORTHOGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_QUEEN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        index_t srcSquare = m_PieceLocations[plIdx];
-        square_t piece = m_Squares[srcSquare];
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_QUEEN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        square_t srcSquare = m_PieceLocations[plIdx];
+        piece_t piece = m_Pieces[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
         }
     }
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KING-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        index_t srcSquare = m_PieceLocations[plIdx];
-        square_t piece = m_Squares[srcSquare];
+    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_KING-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        square_t srcSquare = m_PieceLocations[plIdx];
+        piece_t piece = m_Pieces[srcSquare];
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
         }
@@ -170,14 +170,14 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
 }
 
 template<int GenFlags>
-void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
-    for(index_t destSquare = srcSquare + direction; (destSquare & 0x88) == 0 && slideDistance > 0; destSquare += direction, --slideDistance) {
-        square_t destContents = m_Squares[destSquare];
+void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
+    for(square_t destSquare = srcSquare + direction; (destSquare & 0x88) == 0 && slideDistance > 0; destSquare += direction, --slideDistance) {
+        piece_t destContents = m_Pieces[destSquare];
         bool isCapture = false;
 
-        if(destContents == SQ_EMPTY) {
+        if(destContents == PC_NONE) {
             // Empty square, everything is fine
-        } else if((destContents & SQ_COLORMASK) == (piece & SQ_COLORMASK)) {
+        } else if((destContents & PC_COLORMASK) == (piece & PC_COLORMASK)) {
             // Same color piece, we can't do anything
             break;
         } else {
@@ -201,20 +201,20 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
 
         // Should not be able to capture an empty square or a king
         if(isCapture) {
-            assert(destContents != SQ_EMPTY);
-            assert((destContents & SQ_PIECEMASK) != SQ_KING);
+            assert(destContents != PC_NONE);
+            assert((destContents & PC_PIECEMASK) != PC_KING);
         }
 
         Move m;
         m.SrcSquare = srcSquare;
         m.DestSquare = destSquare;
         m.IsCapture = isCapture;
-        m.Promotion = SQ_EMPTY;
+        m.Promotion = PC_NONE;
         m.Score = 0;
 
         if(m.IsCapture) {
-            int victimPieceNumber = m_Squares[m.DestSquare] & SQ_PIECEMASK; // [1, 6]
-            int aggressorPieceNumber = m_Squares[m.SrcSquare] & SQ_PIECEMASK; // [1, 6]
+            int victimPieceNumber = m_Pieces[m.DestSquare] & PC_PIECEMASK; // [1, 6]
+            int aggressorPieceNumber = m_Pieces[m.SrcSquare] & PC_PIECEMASK; // [1, 6]
             // In MVV/LVA, the victim dominates the ordering, so, eg, RxR is searched before PxB
             // Scores here range from 10 to 65
             int MVV = 10 * victimPieceNumber;
@@ -223,13 +223,13 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
         }
 
         if(isPromotion) {
-            square_t pieces[4] = {SQ_BISHOP, SQ_KNIGHT, SQ_ROOK, SQ_QUEEN};
-            for(square_t piece : pieces) {
+            piece_t pieces[4] = {PC_BISHOP, PC_KNIGHT, PC_ROOK, PC_QUEEN};
+            for(piece_t piece : pieces) {
                 m.Promotion = piece;
                 // Could be both a capture and a promotion, so we modify the previous score.
                 // We only boost the score of queen promotions, underpromotions
                 // are probably no better than any other move
-                if(m.Promotion == SQ_QUEEN) {
+                if(m.Promotion == PC_QUEEN) {
                     m.Score += 100;
                 }
                 out_MoveList.push_back(m);
@@ -245,12 +245,12 @@ void Board::FindMovesInDirection(square_t piece, index_t srcSquare, int directio
 }
 
 template<int GenFlags>
-void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
+void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
     int startingRank;
     int promotionRank;
     int movementDirection;
 
-    if(m_Squares[srcSquare] & SQ_WHITE) {
+    if(m_Pieces[srcSquare] & PC_WHITE) {
         startingRank = 1;
         promotionRank = 7;
         movementDirection = 0x10;
@@ -276,24 +276,24 @@ void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
     bool generateCaptures = (GenFlags & GEN_CAPTURES) || generateAll;
 
     if(generateMovement) {
-        FindMovesInDirection<GEN_NONCAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_NONCAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
     }
 
     if(generateCaptures) {
-        FindMovesInDirection<GEN_CAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
-        FindMovesInDirection<GEN_CAPTURES>(m_Squares[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
     }
 
     // En Passant
     for(int dfile = -1; dfile <= 1; dfile += 2) {
-        index_t targetSquare = srcSquare + movementDirection + dfile;
+        square_t targetSquare = srcSquare + movementDirection + dfile;
 
         if(targetSquare == m_EnPassantTargetSquare) {
             Move enPassant;
             enPassant.SrcSquare = srcSquare;
             enPassant.DestSquare = m_EnPassantTargetSquare;
             enPassant.IsCapture = true;
-            enPassant.Promotion = SQ_EMPTY;
+            enPassant.Promotion = PC_NONE;
             enPassant.Score = 0;
 
             out_MoveList.push_back(enPassant);
@@ -301,7 +301,7 @@ void Board::FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
     }
 }
 
-void Board::FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList) {
+void Board::FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
     if(m_WhiteToMove) {
         if(srcSquare == CoordsToIndex(0, 4)) {
             if(m_CastlingRights & CR_WHITE_KING_SIDE) {
@@ -323,14 +323,14 @@ void Board::FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList
     }
 }
 
-void Board::FindCastlingMovesHelper(index_t kingStartSquare, int kingMovementDirection, index_t rookStartSquare, std::vector<Move> &out_MoveList) {
-    index_t kingDestSquare = kingStartSquare + (kingMovementDirection * 2);
+void Board::FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList) {
+    square_t kingDestSquare = kingStartSquare + (kingMovementDirection * 2);
 
     // Check for empty squares
-    if(m_Squares[kingStartSquare + kingMovementDirection] != SQ_EMPTY ||
-       m_Squares[kingStartSquare + (kingMovementDirection * 2)] != SQ_EMPTY ||
-       m_Squares[rookStartSquare - kingMovementDirection] != SQ_EMPTY ||
-       m_Squares[rookStartSquare - (kingMovementDirection * 2)] != SQ_EMPTY) {
+    if(m_Pieces[kingStartSquare + kingMovementDirection] != PC_NONE ||
+       m_Pieces[kingStartSquare + (kingMovementDirection * 2)] != PC_NONE ||
+       m_Pieces[rookStartSquare - kingMovementDirection] != PC_NONE ||
+       m_Pieces[rookStartSquare - (kingMovementDirection * 2)] != PC_NONE) {
 
         return;
     }
@@ -345,52 +345,52 @@ void Board::FindCastlingMovesHelper(index_t kingStartSquare, int kingMovementDir
     m.SrcSquare = kingStartSquare;
     m.DestSquare = kingDestSquare;
     m.IsCapture = false;
-    m.Promotion = SQ_EMPTY;
+    m.Promotion = PC_NONE;
     m.Score = MOVE_SCORE_CASTLING;
     out_MoveList.push_back(m);
 }
 
-bool Board::IsAttacked(index_t square) {
-    square_t enemyColor = m_WhiteToMove ? SQ_BLACK : SQ_WHITE;
-    index_t directionToEnemyPawns = m_WhiteToMove ? 0x10 : -0x10;
+bool Board::IsAttacked(square_t square) {
+    piece_t enemyColor = m_WhiteToMove ? PC_BLACK : PC_WHITE;
+    square_t directionToEnemyPawns = m_WhiteToMove ? 0x10 : -0x10;
     int pawnAttackDeltas[2] = {directionToEnemyPawns + 0x01, directionToEnemyPawns - 0x01};
 
     // Find knight attacks
     for(int knightVec : KNIGHT_VECTORS) {
-        square_t attackingSquare = square + knightVec;
-        if((attackingSquare & 0x88) == 0 && m_Squares[attackingSquare] == (enemyColor | SQ_KNIGHT)) {
+        piece_t attackingSquare = square + knightVec;
+        if((attackingSquare & 0x88) == 0 && m_Pieces[attackingSquare] == (enemyColor | PC_KNIGHT)) {
             return true;
         }
     }
 
     // Find pawn attacks
     for(int pawnVec : pawnAttackDeltas) {
-        square_t attackingSquare = square + pawnVec;
-        if((attackingSquare & 0x88) == 0 && m_Squares[attackingSquare] == (enemyColor | SQ_PAWN)) {
+        piece_t attackingSquare = square + pawnVec;
+        if((attackingSquare & 0x88) == 0 && m_Pieces[attackingSquare] == (enemyColor | PC_PAWN)) {
             return true;
         }
     }
 
     // Find sliding piece attacks
     for(int i = 0; i < 8; ++i) {
-        index_t direction = ORTHOGONAL_AND_DIAGONAL_VECTORS[i];
+        square_t direction = ORTHOGONAL_AND_DIAGONAL_VECTORS[i];
         bool isDiagonal = (0x80 >> i) & ORTHOGONAL_AND_DIAGONAL_VECTORS_IS_DIAGONAL_MASK;
         bool isHorizontal = !isDiagonal;
         for(int j = 1; j < 8; ++j) {
-            index_t attackingSquare = square + (direction * j);
+            square_t attackingSquare = square + (direction * j);
             if((attackingSquare & 0x88) != 0) {
                 break; // next direction
             }
-            square_t attackingPiece = m_Squares[attackingSquare];
-            if(attackingPiece != SQ_EMPTY) {
+            piece_t attackingPiece = m_Pieces[attackingSquare];
+            if(attackingPiece != PC_NONE) {
                 // We found something, what is it?
-                if(j == 1 && attackingPiece == (enemyColor | SQ_KING)) {
+                if(j == 1 && attackingPiece == (enemyColor | PC_KING)) {
                     return true;
-                } else if(attackingPiece == (enemyColor | SQ_QUEEN)) {
+                } else if(attackingPiece == (enemyColor | PC_QUEEN)) {
                     return true;
-                } else if (isDiagonal && attackingPiece == (enemyColor | SQ_BISHOP)) {
+                } else if (isDiagonal && attackingPiece == (enemyColor | PC_BISHOP)) {
                     return true;
-                } else if (isHorizontal && attackingPiece == (enemyColor | SQ_ROOK)) {
+                } else if (isHorizontal && attackingPiece == (enemyColor | PC_ROOK)) {
                     return true;
                 }
                 // If we get here: Not an attacker, but the square isn't empty, so we should
@@ -403,13 +403,13 @@ bool Board::IsAttacked(index_t square) {
     return false;
 }
 
-Zobrist::hash_t Board::SquareHashCode(index_t square) {
-    square_t contents = m_Squares[square];
-    if(contents == SQ_EMPTY) {
+Zobrist::hash_t Board::SquareHashCode(square_t square) {
+    piece_t contents = m_Pieces[square];
+    if(contents == PC_NONE) {
         return 0;
     } else {
-        int color = ((contents & SQ_COLORMASK) == SQ_WHITE) ? 0 : 1;
-        int piece = (contents & SQ_PIECEMASK) - 1;
+        int color = ((contents & PC_COLORMASK) == PC_WHITE) ? 0 : 1;
+        int piece = (contents & PC_PIECEMASK) - 1;
         int squareNumber = (square & 0x7) | ((square & 0x70) >> 1);
 
         assert(color >= 0 && color < 2);
@@ -420,18 +420,18 @@ Zobrist::hash_t Board::SquareHashCode(index_t square) {
     }
 }
 
-void Board::SetSquare(index_t square, square_t contents) {
+void Board::SetSquare(square_t square, piece_t contents) {
     m_PieceHash ^= SquareHashCode(square); // clear old hash code
-    m_Squares[square] = contents;
+    m_Pieces[square] = contents;
     m_PieceHash ^= SquareHashCode(square); // set new hash code
 }
 
-void Board::SetSquareWithUndo(index_t square, square_t contents, UndoMove& undo) {
+void Board::SetSquareWithUndo(square_t square, piece_t contents, UndoMove& undo) {
     assert(undo.NumSquaresUpdated < 4);
 
     // Save square contents for undo
     undo.Squares[undo.NumSquaresUpdated] = square;
-    undo.Contents[undo.NumSquaresUpdated] = m_Squares[square];
+    undo.Contents[undo.NumSquaresUpdated] = m_Pieces[square];
     undo.NumSquaresUpdated += 1;
 
     // Modify square
@@ -446,8 +446,8 @@ bool Board::PieceListsConsistentWithBoard() const {
         for(int pieceNumber = 0; pieceNumber < 6; ++pieceNumber) {
             int plIdx = PieceLocationsOffset(color == 0, pieceNumber);
             while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
-                square_t expectedPiece = ((color == 0) ? SQ_WHITE : SQ_BLACK) | (pieceNumber + 1);
-                if(m_Squares[m_PieceLocations[plIdx]] != expectedPiece) {
+                piece_t expectedPiece = ((color == 0) ? PC_WHITE : PC_BLACK) | (pieceNumber + 1);
+                if(m_Pieces[m_PieceLocations[plIdx]] != expectedPiece) {
                     return false;
                 }
                 ++plIdx;
@@ -460,7 +460,7 @@ bool Board::PieceListsConsistentWithBoard() const {
     int numPiecesOnBoard = 0;
     for(int rank = 0; rank < 8; ++rank) {
         for(int file = 0; file < 8; ++file) {
-            if(m_Squares[CoordsToIndex(rank, file)] != SQ_EMPTY) {
+            if(m_Pieces[CoordsToIndex(rank, file)] != PC_NONE) {
                 ++numPiecesOnBoard;
             }
         }
@@ -481,12 +481,12 @@ int Board::PieceLocationsOffset(bool white, int pieceNumber) const {
     return (white ? 0 : 60) + (pieceNumber * 10);
 }
 
-void Board::PieceListRemoveWithUndo(index_t location, UndoMove& undo) {
-    square_t contents = m_Squares[location];
-    assert(contents != SQ_EMPTY);
+void Board::PieceListRemoveWithUndo(square_t location, UndoMove& undo) {
+    piece_t contents = m_Pieces[location];
+    assert(contents != PC_NONE);
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
     int piecePlIdx = -1;
 
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
@@ -508,7 +508,7 @@ void Board::PieceListRemoveWithUndo(index_t location, UndoMove& undo) {
     SetPieceLocationWithUndo(lastPiecePlIdx, PL_END_OF_LIST, undo);
 }
 
-void Board::SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo) {
+void Board::SetPieceLocationWithUndo(int index, square_t location, UndoMove& undo) {
     assert(undo.NumPieceLocationsUpdated < (int)(sizeof(undo.PieceLocations)/sizeof(undo.PieceLocations[0])));
 
     // Save old value for later undo
@@ -520,12 +520,12 @@ void Board::SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo
     m_PieceLocations[index] = location;
 }
 
-void Board::MovePieceWithUndo(index_t from, index_t to, UndoMove& undo) {
-    assert(m_Squares[from] != SQ_EMPTY);
+void Board::MovePieceWithUndo(square_t from, square_t to, UndoMove& undo) {
+    assert(m_Pieces[from] != PC_NONE);
 
-    square_t fromContents = m_Squares[from];
-    int fromPiece = fromContents & SQ_PIECEMASK;
-    int plIdx = PieceLocationsOffset((fromContents & SQ_COLORMASK) == SQ_WHITE, fromPiece - 1);
+    piece_t fromContents = m_Pieces[from];
+    int fromPiece = fromContents & PC_PIECEMASK;
+    int plIdx = PieceLocationsOffset((fromContents & PC_COLORMASK) == PC_WHITE, fromPiece - 1);
 
     // Update piece lists
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
@@ -539,23 +539,23 @@ void Board::MovePieceWithUndo(index_t from, index_t to, UndoMove& undo) {
         assert(m_PieceLocations[plIdx] != PL_END_OF_LIST);
     }
 
-    if(m_Squares[to] != SQ_EMPTY) {
+    if(m_Pieces[to] != PC_NONE) {
         // Capture
         PieceListRemoveWithUndo(to, undo);
     }
 
     // Update squares
     SetSquareWithUndo(to, fromContents, undo);
-    SetSquareWithUndo(from, SQ_EMPTY, undo);
+    SetSquareWithUndo(from, PC_NONE, undo);
 }
 
-void Board::PlaceNewPiece(index_t location, square_t contents) {
+void Board::PlaceNewPiece(square_t location, piece_t contents) {
     // FIXME: This method is almost identical to PlaceNewPieceWithUndo(), would be
     // nice to refactor this somehow.
-    assert(m_Squares[location] == SQ_EMPTY);
+    assert(m_Pieces[location] == PC_NONE);
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
     // Find end of the piece list
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
         ++plIdx;
@@ -565,13 +565,13 @@ void Board::PlaceNewPiece(index_t location, square_t contents) {
     SetSquare(location, contents);
 }
 
-void Board::PlaceNewPieceWithUndo(index_t location, square_t contents, UndoMove& undo) {
-    if(m_Squares[location] != SQ_EMPTY) {
+void Board::PlaceNewPieceWithUndo(square_t location, piece_t contents, UndoMove& undo) {
+    if(m_Pieces[location] != PC_NONE) {
         PieceListRemoveWithUndo(location, undo);
     }
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & SQ_COLORMASK) == SQ_WHITE, (contents & SQ_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
     // Find end of the piece list
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
         ++plIdx;
@@ -582,12 +582,12 @@ void Board::PlaceNewPieceWithUndo(index_t location, square_t contents, UndoMove&
     SetSquareWithUndo(location, contents, undo);
 }
 
-void Board::RemovePieceWithUndo(index_t location, UndoMove& undo) {
+void Board::RemovePieceWithUndo(square_t location, UndoMove& undo) {
     // Update piece list
     PieceListRemoveWithUndo(location, undo);
 
     // Update square
-    SetSquareWithUndo(location, SQ_EMPTY, undo);
+    SetSquareWithUndo(location, PC_NONE, undo);
 }
 
 bool Board::Make(Move m) {
@@ -600,13 +600,13 @@ bool Board::Make(Move m) {
 
     bool legalMove = true;
 
-    bool isPawnMove = ((m_Squares[m.SrcSquare] & SQ_PIECEMASK) == SQ_PAWN);
+    bool isPawnMove = ((m_Pieces[m.SrcSquare] & PC_PIECEMASK) == PC_PAWN);
     bool isEnPassant = isPawnMove && (m.DestSquare == m_EnPassantTargetSquare);
-    bool isKingMove = ((m_Squares[m.SrcSquare] & SQ_PIECEMASK) == SQ_KING);
+    bool isKingMove = ((m_Pieces[m.SrcSquare] & PC_PIECEMASK) == PC_KING);
     bool isCastling = isKingMove && ((m.SrcSquare - m.DestSquare) == 2 || (m.SrcSquare - m.DestSquare) == -2);
-    bool isCapture = (m_Squares[m.DestSquare] != SQ_EMPTY);
-    bool isRookMove = ((m_Squares[m.SrcSquare] & SQ_PIECEMASK) == SQ_ROOK);
-    bool capturesRook = ((m_Squares[m.DestSquare] & SQ_PIECEMASK) == SQ_ROOK);
+    bool isCapture = (m_Pieces[m.DestSquare] != PC_NONE);
+    bool isRookMove = ((m_Pieces[m.SrcSquare] & PC_PIECEMASK) == PC_ROOK);
+    bool capturesRook = ((m_Pieces[m.DestSquare] & PC_PIECEMASK) == PC_ROOK);
 
     // Save undo state
     undo.NumSquaresUpdated = 0;
@@ -628,7 +628,7 @@ bool Board::Make(Move m) {
         int srcFile = m.SrcSquare & 0x07;
         int destFile = m.DestSquare & 0x07;
         int dfile = destFile - srcFile;
-        index_t enemyPawnSquare = m.SrcSquare + dfile;
+        square_t enemyPawnSquare = m.SrcSquare + dfile;
 
         RemovePieceWithUndo(enemyPawnSquare, undo);
     }
@@ -640,7 +640,7 @@ bool Board::Make(Move m) {
         RemovePieceWithUndo(m.SrcSquare, undo);
 
         // Place promoted piece
-        square_t pieceAtDest = (m.Promotion & SQ_PIECEMASK) | (m_WhiteToMove ? SQ_WHITE : SQ_BLACK);
+        piece_t pieceAtDest = (m.Promotion & PC_PIECEMASK) | (m_WhiteToMove ? PC_WHITE : PC_BLACK);
         PlaceNewPieceWithUndo(m.DestSquare, pieceAtDest, undo);
     } else {
         // Just a regular move or capture. If castling, this moves the king,
@@ -653,7 +653,7 @@ bool Board::Make(Move m) {
     // Update en passant target square
     if(isPawnMove) {
         // Could be a two-square pawn move, need to check that to update m_EnPassantTargetSquare
-        index_t midpoint = (m.SrcSquare + m.DestSquare) / 2;
+        square_t midpoint = (m.SrcSquare + m.DestSquare) / 2;
         if((midpoint & 0xf) == (m.SrcSquare & 0xf)) {
             // It was a two-square pawn
             m_EnPassantTargetSquare = midpoint;
@@ -664,14 +664,14 @@ bool Board::Make(Move m) {
     if(isCastling) {
         // Find the rook square
         int kingMovementDirection = (m.DestSquare - m.SrcSquare) > 0 ? 1 : -1;
-        index_t rookDestSquare = m.DestSquare - kingMovementDirection;
+        square_t rookDestSquare = m.DestSquare - kingMovementDirection;
         // account for king side vs queen side
         bool isKingSide = (m.DestSquare & 0x7) == 6;
-        index_t rookSrcSquare = isKingSide ? (m.DestSquare + 1) : (m.DestSquare - 2);
+        square_t rookSrcSquare = isKingSide ? (m.DestSquare + 1) : (m.DestSquare - 2);
 
         // Move the rook
-        assert(m_Squares[rookSrcSquare] == (SQ_ROOK | (m_WhiteToMove ? SQ_WHITE : SQ_BLACK)));
-        assert(m_Squares[rookDestSquare] == SQ_EMPTY);
+        assert(m_Pieces[rookSrcSquare] == (PC_ROOK | (m_WhiteToMove ? PC_WHITE : PC_BLACK)));
+        assert(m_Pieces[rookDestSquare] == PC_NONE);
         MovePieceWithUndo(rookSrcSquare, rookDestSquare, undo);
     }
 
@@ -724,7 +724,7 @@ void Board::Unmake() {
 
     // Set squares directly, bypassing hash updates, since we set that above
     for(int i = 0; i < undo.NumSquaresUpdated; ++i) {
-        m_Squares[undo.Squares[i]] = undo.Contents[i];
+        m_Pieces[undo.Squares[i]] = undo.Contents[i];
     }
 
     // Restore piece lists
@@ -753,7 +753,7 @@ void Board::MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare)
     }
 }
 
-Board::index_t Board::CoordsToIndex(int rank, int file) {
+Board::square_t Board::CoordsToIndex(int rank, int file) {
     return (rank << 4) | file;
 }
 
@@ -763,7 +763,7 @@ void Board::ParseFen(const std::string &fen) {
     std::size_t i = 0;
 
     // Clear board
-    memset(m_Squares, SQ_EMPTY, sizeof(m_Squares));
+    memset(m_Pieces, PC_NONE, sizeof(m_Pieces));
     m_PieceHash = 0;
 
     // Clear piece lists
@@ -774,21 +774,21 @@ void Board::ParseFen(const std::string &fen) {
 
     // Parse board portion of FEN
     while(!(rank == 0 && file > 7)) {
-        square_t piece = SQ_EMPTY;
+        piece_t piece = PC_NONE;
         int skip = 0;
         switch(fen[i++]) {
-            case 'P': piece = SQ_WHITE | SQ_PAWN; break;
-            case 'p': piece = SQ_BLACK | SQ_PAWN; break;
-            case 'N': piece = SQ_WHITE | SQ_KNIGHT; break;
-            case 'n': piece = SQ_BLACK | SQ_KNIGHT; break;
-            case 'B': piece = SQ_WHITE | SQ_BISHOP; break;
-            case 'b': piece = SQ_BLACK | SQ_BISHOP; break;
-            case 'R': piece = SQ_WHITE | SQ_ROOK; break;
-            case 'r': piece = SQ_BLACK | SQ_ROOK; break;
-            case 'Q': piece = SQ_WHITE | SQ_QUEEN; break;
-            case 'q': piece = SQ_BLACK | SQ_QUEEN; break;
-            case 'K': piece = SQ_WHITE | SQ_KING; break;
-            case 'k': piece = SQ_BLACK | SQ_KING; break;
+            case 'P': piece = PC_WHITE | PC_PAWN; break;
+            case 'p': piece = PC_BLACK | PC_PAWN; break;
+            case 'N': piece = PC_WHITE | PC_KNIGHT; break;
+            case 'n': piece = PC_BLACK | PC_KNIGHT; break;
+            case 'B': piece = PC_WHITE | PC_BISHOP; break;
+            case 'b': piece = PC_BLACK | PC_BISHOP; break;
+            case 'R': piece = PC_WHITE | PC_ROOK; break;
+            case 'r': piece = PC_BLACK | PC_ROOK; break;
+            case 'Q': piece = PC_WHITE | PC_QUEEN; break;
+            case 'q': piece = PC_BLACK | PC_QUEEN; break;
+            case 'K': piece = PC_WHITE | PC_KING; break;
+            case 'k': piece = PC_BLACK | PC_KING; break;
             case '1': skip = 1; break;
             case '2': skip = 2; break;
             case '3': skip = 3; break;
@@ -803,7 +803,7 @@ void Board::ParseFen(const std::string &fen) {
                 break;
         }
 
-        if(piece != SQ_EMPTY) {
+        if(piece != PC_NONE) {
             PlaceNewPiece(CoordsToIndex(rank, file++), piece);
         } else {
             file += skip;
@@ -890,9 +890,9 @@ int Board::StaticEvaluation() {
             int plIdx = PieceLocationsOffset(colorIdx == 0, pieceIdx);
 
             while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
-                index_t location = m_PieceLocations[plIdx];
-                square_t piece = m_Squares[location];
-                assert(piece != SQ_EMPTY);
+                square_t location = m_PieceLocations[plIdx];
+                piece_t piece = m_Pieces[location];
+                assert(piece != PC_NONE);
 
                 int rank = (location >> 4) & 0x7;
                 int file = (location >> 0) & 0x7;
@@ -908,13 +908,13 @@ int Board::StaticEvaluation() {
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
                 scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][squareIdx];
 
-                if((piece & SQ_PIECEMASK) == SQ_PAWN) {
+                if((piece & PC_PIECEMASK) == PC_PAWN) {
                     pawnsOnFile[colorIdx][file] += 1;
                     pawnMinRank[colorIdx][file] = std::min(pawnMinRank[colorIdx][file], rank);
                     pawnMaxRank[colorIdx][file] = std::max(pawnMaxRank[colorIdx][file], rank);
                 }
 
-                if((piece & SQ_PIECEMASK) == SQ_KING) {
+                if((piece & PC_PIECEMASK) == PC_KING) {
                     assert(kingRank[colorIdx] == -1 && kingFile[colorIdx] == -1);
                     kingRank[colorIdx] = rank;
                     kingFile[colorIdx] = file;
@@ -1042,10 +1042,10 @@ std::vector<int> Board::EvaluationFeatures() {
 }
 
 bool Board::InCheck() {
-    // FIXME: SQ_KING - 1 is an ugly construct, and there are other places that
-    // play fast and loose with "piece numbers" vs the SQ_ constants. Need to
+    // FIXME: PC_KING - 1 is an ugly construct, and there are other places that
+    // play fast and loose with "piece numbers" vs the PC_ constants. Need to
     // harnomize the various usages somehow.
-    int kingPlIdx = PieceLocationsOffset(m_WhiteToMove, SQ_KING - 1);
+    int kingPlIdx = PieceLocationsOffset(m_WhiteToMove, PC_KING - 1);
 
     // There should be exactly one king
     assert(m_PieceLocations[kingPlIdx] != PL_END_OF_LIST);
@@ -1060,14 +1060,14 @@ Board::Move Board::ParseMove(const std::string &moveStr) {
     m.SrcSquare = CoordsToIndex(moveStr[1] - '1', moveStr[0] - 'a');
     m.DestSquare = CoordsToIndex(moveStr[3] - '1', moveStr[2] - 'a');
     m.IsCapture = false; // FIXME: This is a garbage value, it might be a capture for all we know
-    m.Promotion = SQ_EMPTY;
+    m.Promotion = PC_NONE;
 
     if(moveStr.size() == 5) {
         switch(moveStr[4]) {
-            case 'b': m.Promotion = SQ_BISHOP; break;
-            case 'n': m.Promotion = SQ_KNIGHT; break;
-            case 'r': m.Promotion = SQ_ROOK; break;
-            case 'q': m.Promotion = SQ_QUEEN; break;
+            case 'b': m.Promotion = PC_BISHOP; break;
+            case 'n': m.Promotion = PC_KNIGHT; break;
+            case 'r': m.Promotion = PC_ROOK; break;
+            case 'q': m.Promotion = PC_QUEEN; break;
             default: assert(false); break;
         }
     }
@@ -1083,11 +1083,11 @@ std::string Board::Move::ToString() const {
     out.push_back('a' + ((DestSquare >> 0) & 0x7));
     out.push_back('1' + ((DestSquare >> 4) & 0x7));
 
-    switch(Promotion & SQ_PIECEMASK) {
-        case SQ_BISHOP: out.push_back('b'); break;
-        case SQ_KNIGHT: out.push_back('n'); break;
-        case SQ_ROOK: out.push_back('r'); break;
-        case SQ_QUEEN: out.push_back('q'); break;
+    switch(Promotion & PC_PIECEMASK) {
+        case PC_BISHOP: out.push_back('b'); break;
+        case PC_KNIGHT: out.push_back('n'); break;
+        case PC_ROOK: out.push_back('r'); break;
+        case PC_QUEEN: out.push_back('q'); break;
         default: break;
     }
 
@@ -1102,13 +1102,13 @@ void Board::Test() {
         board.ParseFen("7k/8/8/8/8/8/7P/3QKBNR w K - 0 1");
 
         Zobrist::hash_t originalHash =
-            Zobrist::Piece[0][SQ_QUEEN - 1][3] ^
-            Zobrist::Piece[0][SQ_KING - 1][4] ^
-            Zobrist::Piece[0][SQ_BISHOP - 1][5] ^
-            Zobrist::Piece[0][SQ_KNIGHT - 1][6] ^
-            Zobrist::Piece[0][SQ_ROOK - 1][7] ^
-            Zobrist::Piece[0][SQ_PAWN - 1][15] ^
-            Zobrist::Piece[1][SQ_KING - 1][63] ^
+            Zobrist::Piece[0][PC_QUEEN - 1][3] ^
+            Zobrist::Piece[0][PC_KING - 1][4] ^
+            Zobrist::Piece[0][PC_BISHOP - 1][5] ^
+            Zobrist::Piece[0][PC_KNIGHT - 1][6] ^
+            Zobrist::Piece[0][PC_ROOK - 1][7] ^
+            Zobrist::Piece[0][PC_PAWN - 1][15] ^
+            Zobrist::Piece[1][PC_KING - 1][63] ^
             Zobrist::WhiteToMove ^
             Zobrist::CastlingRights[CR_WHITE_KING_SIDE];
         
@@ -1116,8 +1116,8 @@ void Board::Test() {
 
         Move move = ParseMove("h2h4");
         Zobrist::hash_t hashAfterMove = originalHash ^
-            Zobrist::Piece[0][SQ_PAWN - 1][15] ^ // remove pawn from old square
-            Zobrist::Piece[0][SQ_PAWN - 1][31] ^ // place pawn on new square
+            Zobrist::Piece[0][PC_PAWN - 1][15] ^ // remove pawn from old square
+            Zobrist::Piece[0][PC_PAWN - 1][31] ^ // place pawn on new square
             Zobrist::EnPassantFile[7] ^ // En passant is available on file 7
             Zobrist::WhiteToMove; // toggle white to move off
         

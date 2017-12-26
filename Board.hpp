@@ -11,16 +11,13 @@
 
 class Board {
 public:
-    // square_t is the actual contents of a square (eg, a white knight, black
-    // pawn, etc), and index_t is the number of the square according to the 0x88
-    // scheme. TODO: Come up with better names, these are confusing.
+    typedef std::uint8_t piece_t;
     typedef std::uint8_t square_t;
-    typedef std::uint8_t index_t;
 
     struct Move {
-        index_t SrcSquare;
-        index_t DestSquare;
-        square_t Promotion;
+        square_t SrcSquare;
+        square_t DestSquare;
+        piece_t Promotion;
         bool IsCapture;
         // TOOD: Need to figure out if I care how big the Move structs are
         int Score;
@@ -57,7 +54,7 @@ public:
 
     bool Make(Move m);
     void Unmake();
-    static index_t CoordsToIndex(int rank, int file);
+    static square_t CoordsToIndex(int rank, int file);
     void ParseFen(const std::string &fen);
     int StaticEvaluation();
     std::vector<int> EvaluationFeatures();
@@ -75,34 +72,34 @@ private:
         Zobrist::hash_t PieceHash;
         int PliesSincePawnMoveOrCapture;
         int NumSquaresUpdated;
-        int NumPieceLocationsUpdated;   
-        index_t Squares[4];
-        square_t Contents[4];
+        int NumPieceLocationsUpdated;
+        square_t Squares[4];
+        piece_t Contents[4];
         // Maximum piece locations modifications is 5. Worst case is pawn
         // capture and promotion on the same move:
         //     * Remove old pawn (2 slots)
         //     * Remove captured piece (2 slots)
         //     * Add promoted piece (1 slot)
         uint8_t PieceLocationIndexes[5];
-        index_t PieceLocations[5];
+        square_t PieceLocations[5];
         std::uint8_t CastlingRights;
-        index_t EnPassantTargetSquare;
+        square_t EnPassantTargetSquare;
     };
 
-    static const square_t SQ_PIECEMASK = 0x07;
+    static const piece_t PC_PIECEMASK = 0x07;
 
-    static const square_t SQ_EMPTY = 0x00;
+    static const piece_t PC_NONE = 0x00;
 
-    static const square_t SQ_PAWN = 0x01;
-    static const square_t SQ_KNIGHT = 0x02;
-    static const square_t SQ_BISHOP = 0x03;
-    static const square_t SQ_ROOK = 0x04;    
-    static const square_t SQ_QUEEN = 0x05;
-    static const square_t SQ_KING = 0x06;
+    static const piece_t PC_PAWN = 0x01;
+    static const piece_t PC_KNIGHT = 0x02;
+    static const piece_t PC_BISHOP = 0x03;
+    static const piece_t PC_ROOK = 0x04;    
+    static const piece_t PC_QUEEN = 0x05;
+    static const piece_t PC_KING = 0x06;
     
-    static const square_t SQ_COLORMASK = 0x80;
-    static const square_t SQ_BLACK = 0x00;
-    static const square_t SQ_WHITE = 0x80;
+    static const piece_t PC_COLORMASK = 0x80;
+    static const piece_t PC_BLACK = 0x00;
+    static const piece_t PC_WHITE = 0x80;
 
     static const int CR_WHITE_KING_SIDE = 0x1;
     static const int CR_WHITE_QUEEN_SIDE = 0x2;
@@ -112,46 +109,46 @@ private:
     static const int PL_END_OF_LIST = 0x7F;
 
     struct SquareModification {
-        index_t Square;
-        square_t OldValue;
+        square_t Square;
+        piece_t OldValue;
     };
 
     template<int GenFlags>
-    void FindMovesInDirection(square_t piece, index_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
+    void FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
 
     template<int GenFlags>
-    void FindPawnMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
+    void FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
 
-    void MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare);
-    void FindCastlingMoves(index_t srcSquare, std::vector<Move> &out_MoveList);
-    void FindCastlingMovesHelper(index_t kingStartSquare, int kingMovementDirection, index_t rookStartSquare, std::vector<Move> &out_MoveList);
-    bool IsAttacked(index_t square);
-    Zobrist::hash_t SquareHashCode(index_t square);
-    void SetSquare(index_t square, square_t contents);
-    void SetSquareWithUndo(index_t square, square_t contents, UndoMove &undo);
+    void MarkRookIneligibleForCastling(bool rookIsWhite, piece_t rookSquare);
+    void FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
+    void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList);
+    bool IsAttacked(square_t square);
+    Zobrist::hash_t SquareHashCode(square_t square);
+    void SetSquare(square_t square, piece_t contents);
+    void SetSquareWithUndo(square_t square, piece_t contents, UndoMove &undo);
 
     bool PieceListsConsistentWithBoard() const;
     int PieceLocationsOffset(bool white, int pieceNumber) const;
-    void PieceListRemoveWithUndo(index_t location, UndoMove& undo);
-    void SetPieceLocationWithUndo(int index, index_t location, UndoMove& undo);
-    void MovePieceWithUndo(index_t from, index_t to, UndoMove& undo);
-    void PlaceNewPiece(index_t location, square_t contents);
-    void PlaceNewPieceWithUndo(index_t location, square_t contents, UndoMove& undo);
-    void RemovePieceWithUndo(index_t location, UndoMove& undo);
+    void PieceListRemoveWithUndo(square_t location, UndoMove& undo);
+    void SetPieceLocationWithUndo(int index, square_t location, UndoMove& undo);
+    void MovePieceWithUndo(square_t from, square_t to, UndoMove& undo);
+    void PlaceNewPiece(square_t location, piece_t contents);
+    void PlaceNewPieceWithUndo(square_t location, piece_t contents, UndoMove& undo);
+    void RemovePieceWithUndo(square_t location, UndoMove& undo);
 
-    square_t &Square(int rank, int file);
+    piece_t& PieceOn(int rank, int file);
     
     // 0x88 board representation
-    square_t m_Squares[128];
+    piece_t m_Pieces[128];
 
     // Piece list: 2 sides * 6 pieces * 10 elements = 120
     // (10 because there are at most 9 of any given piece, and there is an extra
     // element needed as a terminator)
-    index_t m_PieceLocations[120];
+    square_t m_PieceLocations[120];
 
     bool m_WhiteToMove = true;
     std::uint8_t m_CastlingRights = 0xF;
-    index_t m_EnPassantTargetSquare = 0x7F;
+    square_t m_EnPassantTargetSquare = 0x7F;
     Zobrist::hash_t m_PieceHash = 0;
     int m_PliesSincePawnMoveOrCapture; // for the 50 move rule
     std::vector<int> m_Features;
