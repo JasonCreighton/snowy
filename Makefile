@@ -27,7 +27,7 @@ cppcheck:
 	cppcheck --quiet --enable=all --error-exitcode=1 .
 
 clang-tidy: compile_commands.json
-	run-clang-tidy-3.9.py -j 4 -checks='*,-google-*,-llvm-*,-cppcoreguidelines-*,-clang-analyzer-*,-cert-*,-readability-else-after-return,-readability-implicit-bool-cast,-readability-simplify-boolean-expr'
+	run-clang-tidy-3.9.py -j 4 -checks='*,-google-*,-llvm-*,-cppcoreguidelines-*,-clang-analyzer-*,-cert-*,-readability-else-after-return,-readability-implicit-bool-cast,-readability-simplify-boolean-expr,-modernize-raw-string-literal'
 
 clang-analyze: compile_commands.json
 	$(CLANG_ANALYZE_BUILD) --status-bugs

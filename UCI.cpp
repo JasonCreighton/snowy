@@ -89,12 +89,12 @@ bool UCI::DoCommand(const std::string& commandLine) {
             lineStream >> value;
 
             if(constantValue != "value") {
-                IO::PutInfo("Error parsing setoption: Expected \"value\"");
+                IO::PutInfo(R"(Error parsing setoption: Expected "value")");
             }
             
             SetOption(name, value);
         } else {
-            IO::PutInfo("Error parsing setoption: Expected \"name\"");
+            IO::PutInfo(R"(Error parsing setoption: Expected "name")");
         }
     } else if(command == "position") {
         m_Search.WaitForSearch();
