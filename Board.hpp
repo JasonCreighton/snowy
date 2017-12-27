@@ -14,6 +14,25 @@ public:
     typedef std::uint8_t piece_t;
     typedef std::uint8_t square_t;
 
+    static const int SQ_NONE = 0x7F;
+
+    // Abuse of class to create a pseudo-namespace for square_t helper functions
+    class Square {
+    public:
+        static square_t FromCoords(int rank, int file) { return (rank << 4) | file; }
+        static bool OnBoard(square_t square) { return (square & 0x88) == 0; }
+        static int Rank(square_t square) { return square >> 4; }
+        static int File(square_t square) { return square & 0x7; }
+        static int Index64(square_t square) { return (Rank(square) << 3) | File(square); }
+        static int IndexPST64(square_t square, bool whitePiece) {
+            if(whitePiece) {
+                return ((7 - Rank(square)) * 8) + File(square);
+            } else {
+                return (Rank(square) * 8) + File(square);
+            }
+        }
+    };
+
     struct Move {
         square_t SrcSquare;
         square_t DestSquare;
@@ -118,7 +137,6 @@ private:
     template<int GenFlags>
     void FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
     
-    static square_t CoordsToIndex(int rank, int file);
     void MarkRookIneligibleForCastling(bool rookIsWhite, piece_t rookSquare);
     void FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList);
@@ -136,8 +154,6 @@ private:
     void PlaceNewPieceWithUndo(square_t location, piece_t contents, UndoMove& undo);
     void RemovePieceWithUndo(square_t location, UndoMove& undo);
 
-    piece_t& PieceOn(int rank, int file);
-    
     // 0x88 board representation
     piece_t m_Pieces[128];
 

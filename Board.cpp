@@ -46,14 +46,14 @@ void Board::Print() {
     for(int rank = 7; rank >= 0; --rank) {
         std::string line = std::to_string(rank + 1) + " ";
         for(int file = 0; file < 8; ++file) {
-            piece_t square = PieceOn(rank, file);
-            char piece = pieceMap[square & PC_PIECEMASK];
-            if(square != PC_NONE && (square & PC_COLORMASK) == PC_BLACK) {
+            piece_t piece = m_Pieces[Square::FromCoords(rank, file)];
+            char pieceLetter = pieceMap[piece & PC_PIECEMASK];
+            if(piece != PC_NONE && (piece & PC_COLORMASK) == PC_BLACK) {
                 // HACKY
-                piece = (char)std::tolower((int)piece);
+                pieceLetter = (char)std::tolower((int)pieceLetter);
             }
 
-            line.push_back(piece);
+            line.push_back(pieceLetter);
             line.push_back(' ');
         }
         line += std::to_string(rank + 1);
@@ -64,18 +64,14 @@ void Board::Print() {
 }
 
 Zobrist::hash_t Board::Hash() const {
-    bool enPassantAvailable = m_EnPassantTargetSquare != 0x7F;
-    int enPassantFile = m_EnPassantTargetSquare & 0x7;
+    bool enPassantAvailable = m_EnPassantTargetSquare != SQ_NONE;
+    int enPassantFile = Square::File(m_EnPassantTargetSquare);
 
     return
         m_PieceHash ^
         (m_WhiteToMove ? Zobrist::WhiteToMove : 0) ^
         Zobrist::CastlingRights[m_CastlingRights] ^
         (enPassantAvailable ? Zobrist::EnPassantFile[enPassantFile] : 0);
-}
-
-Board::piece_t &Board::PieceOn(int rank, int file) {
-    return m_Pieces[(rank << 4) | file];
 }
 
 bool Board::WhiteToMove() {
@@ -171,7 +167,7 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
 
 template<int GenFlags>
 void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
-    for(square_t destSquare = srcSquare + direction; (destSquare & 0x88) == 0 && slideDistance > 0; destSquare += direction, --slideDistance) {
+    for(square_t destSquare = srcSquare + direction; Square::OnBoard(destSquare) && slideDistance > 0; destSquare += direction, --slideDistance) {
         piece_t destContents = m_Pieces[destSquare];
         bool isCapture = false;
 
@@ -262,11 +258,11 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
 
     int movementDistance = 1;
 
-    if(((srcSquare >> 4) & 0x7) == startingRank) {
+    if(Square::Rank(srcSquare) == startingRank) {
         movementDistance = 2;
     }
 
-    bool isPromotion = (((srcSquare + movementDirection) >> 4) == promotionRank);
+    bool isPromotion = (Square::Rank(srcSquare + movementDirection) == promotionRank);
 
     // GEN_PROMOTIONS is handled a little special: We generate all
     // promotions, capturing and non-capturing, regardless of whether that
@@ -303,21 +299,21 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
 
 void Board::FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
     if(m_WhiteToMove) {
-        if(srcSquare == CoordsToIndex(0, 4)) {
+        if(srcSquare == Square::FromCoords(0, 4)) {
             if(m_CastlingRights & CR_WHITE_KING_SIDE) {
-                FindCastlingMovesHelper(srcSquare, 1, CoordsToIndex(0, 7), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(0, 7), out_MoveList);
             }
             if(m_CastlingRights & CR_WHITE_QUEEN_SIDE) {
-                FindCastlingMovesHelper(srcSquare, -1, CoordsToIndex(0, 0), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(0, 0), out_MoveList);
             }
         }
     } else {
-        if(srcSquare == CoordsToIndex(7, 4)) {
+        if(srcSquare == Square::FromCoords(7, 4)) {
             if(m_CastlingRights & CR_BLACK_KING_SIDE) {
-                FindCastlingMovesHelper(srcSquare, 1, CoordsToIndex(7, 7), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(7, 7), out_MoveList);
             }
             if(m_CastlingRights & CR_BLACK_QUEEN_SIDE) {
-                FindCastlingMovesHelper(srcSquare, -1, CoordsToIndex(7, 0), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(7, 0), out_MoveList);
             }
         }
     }
@@ -358,7 +354,7 @@ bool Board::IsAttacked(square_t square) {
     // Find knight attacks
     for(int knightVec : KNIGHT_VECTORS) {
         piece_t attackingSquare = square + knightVec;
-        if((attackingSquare & 0x88) == 0 && m_Pieces[attackingSquare] == (enemyColor | PC_KNIGHT)) {
+        if(Square::OnBoard(attackingSquare) && m_Pieces[attackingSquare] == (enemyColor | PC_KNIGHT)) {
             return true;
         }
     }
@@ -366,7 +362,7 @@ bool Board::IsAttacked(square_t square) {
     // Find pawn attacks
     for(int pawnVec : pawnAttackDeltas) {
         piece_t attackingSquare = square + pawnVec;
-        if((attackingSquare & 0x88) == 0 && m_Pieces[attackingSquare] == (enemyColor | PC_PAWN)) {
+        if(Square::OnBoard(attackingSquare) && m_Pieces[attackingSquare] == (enemyColor | PC_PAWN)) {
             return true;
         }
     }
@@ -378,7 +374,7 @@ bool Board::IsAttacked(square_t square) {
         bool isHorizontal = !isDiagonal;
         for(int j = 1; j < 8; ++j) {
             square_t attackingSquare = square + (direction * j);
-            if((attackingSquare & 0x88) != 0) {
+            if(!Square::OnBoard(attackingSquare)) {
                 break; // next direction
             }
             piece_t attackingPiece = m_Pieces[attackingSquare];
@@ -410,7 +406,7 @@ Zobrist::hash_t Board::SquareHashCode(square_t square) {
     } else {
         int color = ((contents & PC_COLORMASK) == PC_WHITE) ? 0 : 1;
         int piece = (contents & PC_PIECEMASK) - 1;
-        int squareNumber = (square & 0x7) | ((square & 0x70) >> 1);
+        int squareNumber = Square::Index64(square);
 
         assert(color >= 0 && color < 2);
         assert(squareNumber >= 0 && squareNumber < 64);
@@ -460,7 +456,7 @@ bool Board::PieceListsConsistentWithBoard() const {
     int numPiecesOnBoard = 0;
     for(int rank = 0; rank < 8; ++rank) {
         for(int file = 0; file < 8; ++file) {
-            if(m_Pieces[CoordsToIndex(rank, file)] != PC_NONE) {
+            if(m_Pieces[Square::FromCoords(rank, file)] != PC_NONE) {
                 ++numPiecesOnBoard;
             }
         }
@@ -633,7 +629,7 @@ bool Board::Make(Move m) {
         RemovePieceWithUndo(enemyPawnSquare, undo);
     }
 
-    if(isPawnMove && ((m.DestSquare >> 4) == 7 || (m.DestSquare >> 4) == 0)) {
+    if(isPawnMove && (Square::Rank(m.DestSquare) == 7 || Square::Rank(m.DestSquare) == 0)) {
         // Pawn promotion
 
         // Remove pawn
@@ -648,7 +644,7 @@ bool Board::Make(Move m) {
         MovePieceWithUndo(m.SrcSquare, m.DestSquare, undo);
     }
 
-    m_EnPassantTargetSquare = 0x7F; // generally en passant will not be possible on the next move
+    m_EnPassantTargetSquare = SQ_NONE; // generally en passant will not be possible on the next move
     
     // Update en passant target square
     if(isPawnMove) {
@@ -753,10 +749,6 @@ void Board::MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare)
     }
 }
 
-Board::square_t Board::CoordsToIndex(int rank, int file) {
-    return (rank << 4) | file;
-}
-
 void Board::ParseFen(const std::string &fen) {
     int rank = 7;
     int file = 0;
@@ -804,7 +796,7 @@ void Board::ParseFen(const std::string &fen) {
         }
 
         if(piece != PC_NONE) {
-            PlaceNewPiece(CoordsToIndex(rank, file++), piece);
+            PlaceNewPiece(Square::FromCoords(rank, file++), piece);
         } else {
             file += skip;
         }
@@ -837,14 +829,14 @@ void Board::ParseFen(const std::string &fen) {
     if(fen[i] == '-') {
         // en passant not valid
         ++i;
-        m_EnPassantTargetSquare = 0x7F;
+        m_EnPassantTargetSquare = SQ_NONE;
     } else {
         char fileLetter = fen[i++];
         char rankNumber = fen[i++];
         // TODO: Should check that these characters are in the expected range
         int enPassantRank = rankNumber - '1';
         int enPassantFile = fileLetter - 'a';
-        m_EnPassantTargetSquare = CoordsToIndex(enPassantRank, enPassantFile);
+        m_EnPassantTargetSquare = Square::FromCoords(enPassantRank, enPassantFile);
     }
 
     while(fen[i] == ' ') { ++i; }
@@ -894,16 +886,9 @@ int Board::StaticEvaluation() {
                 piece_t piece = m_Pieces[location];
                 assert(piece != PC_NONE);
 
-                int rank = (location >> 4) & 0x7;
-                int file = (location >> 0) & 0x7;
-                int squareIdx;
-                if(colorIdx == 0) {
-                    // white
-                    squareIdx = ((7 - rank) * 8) + file;
-                } else {
-                    // black
-                    squareIdx = (rank * 8) + file;
-                }
+                int rank = Square::Rank(location);
+                int file = Square::File(location);
+                int squareIdx = Square::IndexPST64(location, colorIdx == 0);
                 
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
                 scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][squareIdx];
@@ -1057,8 +1042,8 @@ bool Board::InCheck() {
 Board::Move Board::ParseMove(const std::string &moveStr) {
     Move m;
 
-    m.SrcSquare = CoordsToIndex(moveStr[1] - '1', moveStr[0] - 'a');
-    m.DestSquare = CoordsToIndex(moveStr[3] - '1', moveStr[2] - 'a');
+    m.SrcSquare = Square::FromCoords(moveStr[1] - '1', moveStr[0] - 'a');
+    m.DestSquare = Square::FromCoords(moveStr[3] - '1', moveStr[2] - 'a');
     m.IsCapture = false; // FIXME: This is a garbage value, it might be a capture for all we know
     m.Promotion = PC_NONE;
 
@@ -1078,10 +1063,10 @@ Board::Move Board::ParseMove(const std::string &moveStr) {
 std::string Board::Move::ToString() const {
     std::string out;
 
-    out.push_back('a' + ((SrcSquare >> 0) & 0x7));
-    out.push_back('1' + ((SrcSquare >> 4) & 0x7));
-    out.push_back('a' + ((DestSquare >> 0) & 0x7));
-    out.push_back('1' + ((DestSquare >> 4) & 0x7));
+    out.push_back('a' + Square::File(SrcSquare));
+    out.push_back('1' + Square::Rank(SrcSquare));
+    out.push_back('a' + Square::File(DestSquare));
+    out.push_back('1' + Square::Rank(DestSquare));
 
     switch(Promotion & PC_PIECEMASK) {
         case PC_BISHOP: out.push_back('b'); break;
