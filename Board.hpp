@@ -154,6 +154,10 @@ private:
     void PlaceNewPieceWithUndo(square_t location, piece_t contents, UndoMove& undo);
     void RemovePieceWithUndo(square_t location, UndoMove& undo);
 
+    // VisitorFunction should be: void visit(square_t square);
+    template<typename VisitorFunction>
+    void ForEachPiece(bool white, int pieceNumber, VisitorFunction f);
+
     // 0x88 board representation
     piece_t m_Pieces[128];
 

@@ -113,56 +113,46 @@ bool Board::IsEligibleForFiftyMoveDraw() {
 template<int GenFlags>
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
+    
+    // TODO: This PC_FOOBAR-1 stuff isn't great, need to clean it up
+    ForEachPiece(m_WhiteToMove, PC_PAWN-1, [&](square_t srcSquare) {
+        FindPawnMoves<GenFlags>(srcSquare, out_MoveList);
+    });
 
-    // FIXME: Loops are too complicated and messy.
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_PAWN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        FindPawnMoves<GenFlags>(m_PieceLocations[plIdx], out_MoveList);
-    }
-
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_KNIGHT-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        square_t srcSquare = m_PieceLocations[plIdx];
-        piece_t piece = m_Pieces[srcSquare];
+    ForEachPiece(m_WhiteToMove, PC_KNIGHT-1, [&](square_t srcSquare) {
         for(int vector : KNIGHT_VECTORS) {
-            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
         }
-    }
+    });
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_BISHOP-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        square_t srcSquare = m_PieceLocations[plIdx];
-        piece_t piece = m_Pieces[srcSquare];
+    ForEachPiece(m_WhiteToMove, PC_BISHOP-1, [&](square_t srcSquare) {
         for(int vector : DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
-    }
+    });
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_ROOK-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        square_t srcSquare = m_PieceLocations[plIdx];
-        piece_t piece = m_Pieces[srcSquare];
+    ForEachPiece(m_WhiteToMove, PC_ROOK-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
-    }
+    });
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_QUEEN-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        square_t srcSquare = m_PieceLocations[plIdx];
-        piece_t piece = m_Pieces[srcSquare];
+    ForEachPiece(m_WhiteToMove, PC_QUEEN-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 8, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
-    }
+    });
 
-    for(int plIdx = PieceLocationsOffset(m_WhiteToMove, PC_KING-1); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
-        square_t srcSquare = m_PieceLocations[plIdx];
-        piece_t piece = m_Pieces[srcSquare];
+    ForEachPiece(m_WhiteToMove, PC_KING-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(piece, srcSquare, vector, 1, false, out_MoveList);
+            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
         }
 
         // Check for castling
         if(GenFlags & GEN_NONCAPTURES) {
             FindCastlingMoves(srcSquare, out_MoveList);
         }
-    }
+    });
 }
 
 template<int GenFlags>
@@ -586,6 +576,13 @@ void Board::RemovePieceWithUndo(square_t location, UndoMove& undo) {
     SetSquareWithUndo(location, PC_NONE, undo);
 }
 
+template<typename VisitorFunction>
+void Board::ForEachPiece(bool white, int pieceNumber, VisitorFunction f) {
+    for(int plIdx = PieceLocationsOffset(white, pieceNumber); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+        f(m_PieceLocations[plIdx]);
+    }
+}
+
 bool Board::Make(Move m) {
     assert(m.SrcSquare >= 0 && m.SrcSquare < 128);
     assert(m.DestSquare >= 0 && m.DestSquare < 128);
@@ -879,10 +876,7 @@ int Board::StaticEvaluation() {
     // loops to process only the pawns, etc.
     for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
         for(int pieceIdx = 0; pieceIdx < 6; ++pieceIdx) {
-            int plIdx = PieceLocationsOffset(colorIdx == 0, pieceIdx);
-
-            while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
-                square_t location = m_PieceLocations[plIdx];
+            ForEachPiece(colorIdx == 0, pieceIdx, [&](square_t location) {
                 piece_t piece = m_Pieces[location];
                 assert(piece != PC_NONE);
 
@@ -904,9 +898,7 @@ int Board::StaticEvaluation() {
                     kingRank[colorIdx] = rank;
                     kingFile[colorIdx] = file;
                 }
-
-                ++plIdx;
-            }
+            });
         }
     }
 
