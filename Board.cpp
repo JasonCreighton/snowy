@@ -867,43 +867,34 @@ int Board::StaticEvaluation() {
     int pawnsOnFile[2][8] = {{0}};
     int pawnMinRank[2][8] = {{7,7,7,7,7,7,7,7},{7,7,7,7,7,7,7,7}};
     int pawnMaxRank[2][8] = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}};
-    int kingRank[2] = {-1, -1};
-    int kingFile[2] = {-1, -1};
 
     // Piece square tables and counting pawns on files
-    // TODO: We're could be using piece lists more effectively here. We don't
-    // need to save the locations of the kings anymore, and we could have special
-    // loops to process only the pawns, etc.
     for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
-        for(int pieceIdx = 0; pieceIdx < 6; ++pieceIdx) {
-            ForEachPiece(colorIdx == 0, pieceIdx, [&](square_t location) {
-                piece_t piece = m_Pieces[location];
-                assert(piece != PC_NONE);
+        // Pawns
+        ForEachPiece(colorIdx == 0, PC_PAWN-1, [&](square_t square) {
+            int rank = Square::Rank(square);
+            int file = Square::File(square);
+            int pstIdx = Square::IndexPST64(square, colorIdx == 0);            
 
-                int rank = Square::Rank(location);
-                int file = Square::File(location);
-                int squareIdx = Square::IndexPST64(location, colorIdx == 0);
+            scores[colorIdx] += PIECE_VALUES[PC_PAWN - 1];
+            scores[colorIdx] += PIECE_ON_SQUARE_VALUES[PC_PAWN - 1][pstIdx];
+
+            pawnsOnFile[colorIdx][file] += 1;
+            pawnMinRank[colorIdx][file] = std::min(pawnMinRank[colorIdx][file], rank);
+            pawnMaxRank[colorIdx][file] = std::max(pawnMaxRank[colorIdx][file], rank);
+        });
+
+        // Other pieces
+        static_assert((PC_PAWN - 1) == 0, "This loop structure requires pawns have a piece index of 0");        
+        for(int pieceIdx = 1; pieceIdx <= 5; ++pieceIdx) {
+            ForEachPiece(colorIdx == 0, pieceIdx, [&](square_t square) {
+                int pstIdx = Square::IndexPST64(square, colorIdx == 0);
                 
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
-                scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][squareIdx];
-
-                if((piece & PC_PIECEMASK) == PC_PAWN) {
-                    pawnsOnFile[colorIdx][file] += 1;
-                    pawnMinRank[colorIdx][file] = std::min(pawnMinRank[colorIdx][file], rank);
-                    pawnMaxRank[colorIdx][file] = std::max(pawnMaxRank[colorIdx][file], rank);
-                }
-
-                if((piece & PC_PIECEMASK) == PC_KING) {
-                    assert(kingRank[colorIdx] == -1 && kingFile[colorIdx] == -1);
-                    kingRank[colorIdx] = rank;
-                    kingFile[colorIdx] = file;
-                }
+                scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][pstIdx];
             });
         }
     }
-
-    // Both kings should have been found
-    assert(kingRank[0] != -1 && kingFile[0] != -1 && kingRank[1] != -1 && kingFile[1] != -1);
 
     // Calculate board features, which are always from white's perspective.
     // (For example, if white has two doubled pawns, and black has three, the
@@ -973,16 +964,17 @@ int Board::StaticEvaluation() {
 
         // King pawn shield
         int* myLeastAdvancedPawn = (colorIdx == 0) ? pawnMinRank[0] : pawnMaxRank[1];
-        if(kingRank[colorIdx] == backRank) {
+        square_t kingSquare = m_PieceLocations[PieceLocationsOffset(colorIdx == 0, PC_KING - 1)];
+        if(Square::Rank(kingSquare) == backRank) {
             bool considerShield = false;
             int startFile;
             int endFile;
 
-            if(kingFile[colorIdx] > 4) {
+            if(Square::File(kingSquare) > 4) {
                 considerShield = true;
                 startFile = 5;
                 endFile = 7;
-            } else if(kingFile[colorIdx] < 3) {
+            } else if(Square::File(kingSquare) < 3) {
                 considerShield = true;
                 startFile = 0;
                 endFile = 2;
