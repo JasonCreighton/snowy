@@ -139,6 +139,7 @@ void Search::RunSearch() {
         
         m_NumMainNodes = 0;
         m_NumQuiesceNodes = 0;
+        m_NumStaticEvaluations = 0;
         m_HashTableScoreHits = 0;
         m_HashTableMoveHits = 0;
 
@@ -199,6 +200,7 @@ void Search::RunSearch() {
         IO::PutInfo("STATS:"
             " M=" + std::to_string(m_NumMainNodes) +
             " Q=" + std::to_string(m_NumQuiesceNodes) +
+            " SE=" + std::to_string(m_NumStaticEvaluations) +
             " TTS=" + std::to_string(m_HashTableScoreHits) +
             " TTM=" + std::to_string(m_HashTableMoveHits)
         );
@@ -423,6 +425,7 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
     // can serve as a lower bound for our score, since we believe that at least
     // one of our moves should improve our situation.
     int standPatScore = m_Board.StaticEvaluation();
+    ++m_NumStaticEvaluations;
 
     if(standPatScore >= beta) {
         // Our position is too good, we would not have been allowed to get here

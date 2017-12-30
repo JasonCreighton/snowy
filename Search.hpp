@@ -78,6 +78,7 @@ private:
     std::int64_t m_HashTableMoveHits;
     std::int64_t m_NumMainNodes;
     std::int64_t m_NumQuiesceNodes;
+    std::int64_t m_NumStaticEvaluations;
 
     std::vector<Ply> m_Plies;
     TranspositionTable m_TT;
