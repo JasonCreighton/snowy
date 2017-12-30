@@ -142,11 +142,14 @@ void Search::RunSearch() {
         m_HashTableScoreHits = 0;
         m_HashTableMoveHits = 0;
 
+        auto iterationStartTime = std::chrono::high_resolution_clock::now();
         if(!m_SearchParameters.BruteForce) {
             score = MainSearch(-SCORE_INF, SCORE_INF, 0, depth);
         } else {
             score = BruteForceSearch(0, depth);
         }
+        auto iterationDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - iterationStartTime);
+        auto iteration_us = iterationDuration.count();
 
         if(m_StopSearchRequested) {
             // Search was aborted or timed out, but we still need to print bestmove
@@ -174,6 +177,16 @@ void Search::RunSearch() {
             infoStr += " score cp " + std::to_string(score);
         }
 
+        infoStr += " time " + std::to_string(iteration_us / 1000);
+
+        int numNodes = m_NumMainNodes + m_NumQuiesceNodes;                
+        infoStr += " nodes " + std::to_string(numNodes);
+
+        if(iteration_us > (100 * 1000)) {
+            std::int64_t nodesPerSecond = ((static_cast<std::int64_t>(numNodes) * 1000000) / iteration_us);
+            infoStr += " nps " + std::to_string(nodesPerSecond);
+        }
+
         infoStr += " pv";
         pv = PV(depth);
         for(auto& move : pv) {
@@ -182,12 +195,14 @@ void Search::RunSearch() {
 
         IO::PutLine(infoStr);
 
+#ifndef NDEBUG
         IO::PutInfo("STATS:"
             " M=" + std::to_string(m_NumMainNodes) +
             " Q=" + std::to_string(m_NumQuiesceNodes) +
             " TTS=" + std::to_string(m_HashTableScoreHits) +
             " TTM=" + std::to_string(m_HashTableMoveHits)
         );
+#endif
 
         if(depth >= minimumSafeSearchDepth) {
             break;
