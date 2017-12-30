@@ -546,13 +546,13 @@ std::vector<Board::Move> Search::PV(int depth) {
     return pv;
 }
 
-long Search::Perft(int depth) {
+std::int64_t Search::Perft(int depth) {
     std::lock_guard<std::mutex> lock(m_Mutex);    
 
     return Perft(depth, 0);
 }
 
-long Search::Perft(int depth, int plyIndex) {
+std::int64_t Search::Perft(int depth, int plyIndex) {
     Ply& ply = m_Plies[plyIndex];
 
     if(depth == 0) {
@@ -562,7 +562,7 @@ long Search::Perft(int depth, int plyIndex) {
 
     m_Board.FindPseudoLegalMoves(ply.MoveList);
 
-    long nodes = 0;
+    std::int64_t nodes = 0;
 
     for(auto &m : ply.MoveList) {
         if(m_Board.Make(m)) {

@@ -33,7 +33,7 @@ public:
     void StopSearch();
     void WaitForSearch();
     int Quiesce();
-    long Perft(int depth);
+    std::int64_t Perft(int depth);
     void SetHashTableSize(int bytesLog2);
 
 private:
@@ -52,7 +52,7 @@ private:
     void BoostKillersInMoveOrdering(int plyIndex);
     int Quiesce(int alpha, int beta, int plyIndex);
     int BruteForceSearch(int plyIndex, int depth);
-    long Perft(int depth, int plyIndex);
+    std::int64_t Perft(int depth, int plyIndex);
 
     std::mutex m_Mutex;
 
@@ -74,10 +74,10 @@ private:
     std::vector<long> m_BetaCutoffHistogram;
     std::vector<long> m_BestMoveHistogram;
     std::vector<long> m_MoveScoreHistogram;
-    int m_HashTableScoreHits;
-    int m_HashTableMoveHits;
-    int m_NumMainNodes;
-    int m_NumQuiesceNodes;
+    std::int64_t m_HashTableScoreHits;
+    std::int64_t m_HashTableMoveHits;
+    std::int64_t m_NumMainNodes;
+    std::int64_t m_NumQuiesceNodes;
 
     std::vector<Ply> m_Plies;
     TranspositionTable m_TT;
