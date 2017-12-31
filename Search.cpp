@@ -209,6 +209,11 @@ void Search::RunSearch() {
         if(depth >= minimumSafeSearchDepth) {
             break;
         }
+
+        auto timeElapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
+        if(m_SearchParameters.SoftMoveTime_ms != -1 && timeElapsed_ms.count() > m_SearchParameters.SoftMoveTime_ms) {
+            break;
+        }
     }
 
     IO::PutLine("bestmove " + pv[0].ToString());
@@ -233,10 +238,10 @@ void Search::CheckTimeLimit() {
     static int counter = 0;
     counter = (counter + 1) & 0xFFF;
 
-    if(counter == 0 && m_SearchParameters.MoveTime_ms != -1) {
+    if(counter == 0 && m_SearchParameters.HardMoveTime_ms != -1) {
         auto timeElapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
 
-        if(timeElapsed_ms.count() > m_SearchParameters.MoveTime_ms) {
+        if(timeElapsed_ms.count() > m_SearchParameters.HardMoveTime_ms) {
             m_StopSearchRequested = true;
         }
     }

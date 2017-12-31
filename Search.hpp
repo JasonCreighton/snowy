@@ -21,7 +21,8 @@ public:
         int Depth;
         bool BruteForce;
         bool ShowHistograms;
-        int MoveTime_ms;
+        int SoftMoveTime_ms;
+        int HardMoveTime_ms;
     };
 
     static void Test();

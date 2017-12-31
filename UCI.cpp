@@ -20,28 +20,27 @@
 #endif
 
 namespace {
-    int ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl) {
+    void ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl, int& out_softMoveTime_ms, int& out_hardMoveTime_ms) {
         const int TIME_MANAGEMENT_MARGIN_MS = 1000;
 
         // No move time specified, so no time limit
         if(timeLeft_ms == -1) {
-            return -1;
+            out_softMoveTime_ms = -1;
+            out_hardMoveTime_ms = -1;
+            return;
         }
 
         int totalTimeAvailableUntilNextTimeControl_ms = timeLeft_ms + (increment_ms * movesUntilNextTimeControl);
         int idealMoveTime_ms = totalTimeAvailableUntilNextTimeControl_ms / movesUntilNextTimeControl;
+        int avoidFlagTime_ms = std::max(timeLeft_ms - TIME_MANAGEMENT_MARGIN_MS, 0);
 
-        // idealMoveTime takes into account the increment, which is time that we
-        // don't actually have yet, so we also need to consider the right we
-        // have left right now.
-        int avoidFlagTime_ms = timeLeft_ms - TIME_MANAGEMENT_MARGIN_MS;
+        int upperLimit_ms = std::min(idealMoveTime_ms * 2, avoidFlagTime_ms);
+        int lowerLimit_ms = upperLimit_ms / 4;
 
-        // The move time is the more conservative of the two
-        int moveTime_ms = std::min(idealMoveTime_ms, avoidFlagTime_ms);
+        out_softMoveTime_ms = lowerLimit_ms;
+        out_hardMoveTime_ms = upperLimit_ms;
 
-        IO::PutInfo("Thinking for " + std::to_string(moveTime_ms) + " ms");
-
-        return moveTime_ms;
+        IO::PutInfo("Thinking for " + std::to_string(lowerLimit_ms) + " - " + std::to_string(upperLimit_ms) + " ms");
     }
 }
 
@@ -145,7 +144,8 @@ bool UCI::DoCommand(const std::string& commandLine) {
 
         params.Depth = -1;
         params.BruteForce = false;
-        params.MoveTime_ms = -1;
+        params.SoftMoveTime_ms = -1;
+        params.HardMoveTime_ms = -1;
         params.ShowHistograms = false;
         int wtime_ms = -1;
         int winc_ms = 0;
@@ -155,7 +155,7 @@ bool UCI::DoCommand(const std::string& commandLine) {
         while(lineStream >> optionName) {
                  if(optionName == "depth") { lineStream >> params.Depth; }
             else if(optionName == "bruteforce") { lineStream >> params.BruteForce; }
-            else if(optionName == "movetime") { lineStream >> params.MoveTime_ms; }
+            else if(optionName == "movetime") { lineStream >> params.HardMoveTime_ms; }
             else if(optionName == "wtime") { lineStream >> wtime_ms; }
             else if(optionName == "winc") { lineStream >> winc_ms; }
             else if(optionName == "btime") { lineStream >> btime_ms; }
@@ -164,12 +164,12 @@ bool UCI::DoCommand(const std::string& commandLine) {
             else if(optionName == "showhistograms") { lineStream >> params.ShowHistograms; }
         }
 
-        if(params.MoveTime_ms == -1) {
+        if(params.HardMoveTime_ms == -1) {
             // No move time, try to calculate one
             if(m_Board.WhiteToMove()) {
-                params.MoveTime_ms = ChooseMoveTime(wtime_ms, winc_ms, movesUntilNextTimeControl);
+                ChooseMoveTime(wtime_ms, winc_ms, movesUntilNextTimeControl, params.SoftMoveTime_ms, params.HardMoveTime_ms);
             } else {
-                params.MoveTime_ms = ChooseMoveTime(btime_ms, binc_ms, movesUntilNextTimeControl);
+                ChooseMoveTime(btime_ms, binc_ms, movesUntilNextTimeControl, params.SoftMoveTime_ms, params.HardMoveTime_ms);
             }
             // NB: At this point moveTime_ms might still be -1, depending on the options given
         }
@@ -180,8 +180,8 @@ bool UCI::DoCommand(const std::string& commandLine) {
 
             // However, if no move time was given, perhaps a reasonable default
             // so we don't search forever
-            if(params.MoveTime_ms == -1) {
-                params.MoveTime_ms = 5000;
+            if(params.HardMoveTime_ms == -1) {
+                params.HardMoveTime_ms = 5000;
             }
         }
         
