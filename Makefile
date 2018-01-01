@@ -4,24 +4,32 @@ CLANG_ANALYZE_BUILD=/usr/share/clang/scan-build-py-3.9/bin/analyze-build
 
 .PHONY: debug release safe win64 clean cppcheck clang-tidy analyze lint all
 
-debug:
-	+make -f Makefile.debug
 release:
-	+make -f Makefile.release
+	+make -f Makefile.common CONFIG=release
+
+debug:
+	+make -f Makefile.common CONFIG=debug
+
+profile:
+	+make -f Makefile.common CONFIG=profile
+
 safe:
-	+make -f Makefile.safe
+	+make -f Makefile.common CONFIG=safe
+
 win64:
-	+make -f Makefile.win64
+	+make -f Makefile.common CONFIG=win64
+
 clean:
-	+make -f Makefile.debug clean
-	+make -f Makefile.release clean
-	+make -f Makefile.safe clean
-	+make -f Makefile.win64 clean
+	+make -f Makefile.common CONFIG=debug clean
+	+make -f Makefile.common CONFIG=profile clean
+	+make -f Makefile.common CONFIG=release clean
+	+make -f Makefile.common CONFIG=safe clean
+	+make -f Makefile.common CONFIG=win64 clean
 	rm -f compile_commands.json
 
-compile_commands.json: Makefile.debug
-	make -f Makefile.debug clean
-	bear make -f Makefile.debug
+compile_commands.json: Makefile Makefile.common
+	make -f Makefile.common CONFIG=debug clean
+	bear make -f Makefile.common CONFIG=debug
 
 cppcheck:
 	cppcheck --quiet --enable=all --error-exitcode=1 .

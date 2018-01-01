@@ -1,4 +1,0 @@
-CONFIGNAME=safe
-CONFIGFLAGS=-g -D_GLIBCXX_DEBUG -fsanitize=address,undefined
-
-include Makefile.common

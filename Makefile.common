@@ -1,22 +1,47 @@
-# The including Makefile must set the following variables:
+# This Makefile expects that the CONFIG variable will be set to one of
+# "debug", "release", "profile", "safe", "win64"
 #
-# 	CONFIGNAME (eg, "debug", "release", etc.)
-# 	CONFIGFLAGS (To pass to the compiler)
-# 	BINBASENAME (optional, to set executble name)
+# -D_GLIBCXX_DEBUG needed to get clang to emit debug information for libstdc++
+# See: https://stackoverflow.com/questions/41745527/cannot-view-stdstring-when-compiled-with-clang
+DEBUGFLAGS=-g -D_GLIBCXX_DEBUG
+RELEASEFLAGS=-DNDEBUG -O2 -flto
 
 BUILDDIR=build
 HEADERS=$(wildcard *.hpp)
 SOURCES=$(wildcard *.cpp)
 GIT_VERSION:=$(shell git describe --dirty | sed 's/^v//')
 CXX=clang++
-CXXFLAGS=-std=c++14 -Wall -Wextra -Wpedantic -DGIT_VERSION=\"$(GIT_VERSION)\" $(CONFIGFLAGS)
+CXXFLAGS=-std=c++14 -Wall -Wextra -Wpedantic -DGIT_VERSION=\"$(GIT_VERSION)\"
 LDLIBS=-lpthread
 
-OBJDIR=$(BUILDDIR)/obj_$(CONFIGNAME)
+OBJDIR=$(BUILDDIR)/obj_$(CONFIG)
 OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
-BINBASENAME?=$(CONFIGNAME)
-BIN=$(BUILDDIR)/$(BINBASENAME)
-CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIGNAME)
+BIN=$(BUILDDIR)/$(CONFIG)
+CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIG)
+
+ifeq ($(CONFIG),debug)
+	CXXFLAGS+=$(DEBUGFLAGS)
+endif
+ifeq ($(CONFIG),release)
+	CXXFLAGS+=$(RELEASEFLAGS)
+endif
+# On gcc, -fno-omit-frame-pointer implies -mno-omit-leaf-frame-pointer, but
+# clang requires both to produce clean stack traces for Linux's "perf"
+# See: https://bugs.llvm.org/show_bug.cgi?id=9825
+ifeq ($(CONFIG),profile)
+	CXXFLAGS+=$(RELEASEFLAGS) -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer 
+endif
+ifeq ($(CONFIG),safe)
+	CXXFLAGS+=$(DEBUGFLAGS) -fsanitize=address,undefined
+endif
+ifeq ($(CONFIG),win64)
+	# The -posix version is required for threading
+	CXX=x86_64-w64-mingw32-g++-posix
+	CXXFLAGS+=$(RELEASEFLAGS)
+	BIN=$(BUILDDIR)/snowy_x64.exe
+	# Need to statically link to avoid runtime dependency on pthread DLL
+	LDFLAGS=-static -s
+endif
 
 .PHONY: bin prep clean force
 
@@ -30,7 +55,7 @@ clean:
 	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
 
 $(CXXFLAGSFILE): force
-	@echo '$(CXXFLAGS)' | cmp --silent - $@ || echo '$(CXXFLAGS)' > $@
+	@echo '$(CXX) $(CXXFLAGS)' | cmp --silent - $@ || echo '$(CXX) $(CXXFLAGS)' > $@
 
 $(BIN): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDFLAGS) $(LDLIBS)
