@@ -11,8 +11,50 @@
 
 class Board {
 public:
+    typedef int color_t;
     typedef std::uint8_t piece_t;
     typedef std::uint8_t square_t;
+
+    static const piece_t PC_PIECEMASK = 0x07;
+
+    static const piece_t PC_NONE = 0x00;
+
+    static const piece_t PC_PAWN = 0x01;
+    static const piece_t PC_KNIGHT = 0x02;
+    static const piece_t PC_BISHOP = 0x03;
+    static const piece_t PC_ROOK = 0x04;    
+    static const piece_t PC_QUEEN = 0x05;
+    static const piece_t PC_KING = 0x06;
+    
+    static const piece_t PC_COLORMASK = 0x80;
+    static const piece_t PC_BLACK = 0x00;
+    static const piece_t PC_WHITE = 0x80;
+
+    class Color {
+    public:
+        static const color_t WHITE = 0;
+        static const color_t BLACK = 1;
+        static color_t OtherSide(color_t color) { return !color; };
+        static piece_t PieceBits(color_t color) {
+            // TODO: This method is a little weird (does it belong here or in the
+            // Piece class?) and I think we would be better served with some
+            // more abstracted way to construct a piece_t
+            static const color_t ColorToPieceBits[2] = { PC_WHITE, PC_BLACK };
+
+            return ColorToPieceBits[color];
+        }
+    };
+
+    class Piece {
+    public:
+        static color_t Color(piece_t piece) {
+            // TODO: Tweak the piece_t bit layout to make this just a shift
+            return (piece & PC_COLORMASK) == PC_WHITE ? Color::WHITE : Color::BLACK;
+        }
+        static int Index(piece_t piece) {
+            return (piece & PC_PIECEMASK) - 1;
+        }
+    };
 
     static const int SQ_NONE = 0x7F;
 
@@ -24,8 +66,8 @@ public:
         static int Rank(square_t square) { return square >> 4; }
         static int File(square_t square) { return square & 0x7; }
         static int Index64(square_t square) { return (Rank(square) << 3) | File(square); }
-        static int IndexPST64(square_t square, bool whitePiece) {
-            if(whitePiece) {
+        static int IndexPST64(square_t square, color_t pieceColor) {
+            if(pieceColor == Color::WHITE) {
                 return ((7 - Rank(square)) * 8) + File(square);
             } else {
                 return (Rank(square) * 8) + File(square);
@@ -77,7 +119,7 @@ public:
     int StaticEvaluation();
     std::vector<int> EvaluationFeatures();
     bool InCheck();
-    bool WhiteToMove();
+    bool WhiteToMove() const;
     bool IsRepetition();
     bool IsEligibleForFiftyMoveDraw();
 
@@ -104,21 +146,6 @@ private:
         square_t EnPassantTargetSquare;
     };
 
-    static const piece_t PC_PIECEMASK = 0x07;
-
-    static const piece_t PC_NONE = 0x00;
-
-    static const piece_t PC_PAWN = 0x01;
-    static const piece_t PC_KNIGHT = 0x02;
-    static const piece_t PC_BISHOP = 0x03;
-    static const piece_t PC_ROOK = 0x04;    
-    static const piece_t PC_QUEEN = 0x05;
-    static const piece_t PC_KING = 0x06;
-    
-    static const piece_t PC_COLORMASK = 0x80;
-    static const piece_t PC_BLACK = 0x00;
-    static const piece_t PC_WHITE = 0x80;
-
     static const int CR_WHITE_KING_SIDE = 0x1;
     static const int CR_WHITE_QUEEN_SIDE = 0x2;
     static const int CR_BLACK_KING_SIDE = 0x4;
@@ -137,7 +164,7 @@ private:
     template<int GenFlags>
     void FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
     
-    void MarkRookIneligibleForCastling(bool rookIsWhite, piece_t rookSquare);
+    void MarkRookIneligibleForCastling(color_t rookColor, square_t rookSquare);
     void FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
     void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList);
     bool IsAttacked(square_t square);
@@ -146,7 +173,7 @@ private:
     void SetSquareWithUndo(square_t square, piece_t contents, UndoMove &undo);
 
     bool PieceListsConsistentWithBoard() const;
-    int PieceLocationsOffset(bool white, int pieceNumber) const;
+    int PieceLocationsOffset(color_t color, int pieceNumber) const;
     void PieceListRemoveWithUndo(square_t location, UndoMove& undo);
     void SetPieceLocationWithUndo(int index, square_t location, UndoMove& undo);
     void MovePieceWithUndo(square_t from, square_t to, UndoMove& undo);
@@ -156,7 +183,7 @@ private:
 
     // VisitorFunction should be: void visit(square_t square);
     template<typename VisitorFunction>
-    void ForEachPiece(bool white, int pieceNumber, VisitorFunction f);
+    void ForEachPiece(color_t color, int pieceNumber, VisitorFunction f);
 
     // 0x88 board representation
     piece_t m_Pieces[128];
@@ -166,7 +193,7 @@ private:
     // element needed as a terminator)
     square_t m_PieceLocations[120];
 
-    bool m_WhiteToMove = true;
+    color_t m_SideToMove = Color::WHITE;
     std::uint8_t m_CastlingRights = 0xF;
     square_t m_EnPassantTargetSquare = 0x7F;
     Zobrist::hash_t m_PieceHash = 0;

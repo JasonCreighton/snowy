@@ -69,13 +69,13 @@ Zobrist::hash_t Board::Hash() const {
 
     return
         m_PieceHash ^
-        (m_WhiteToMove ? Zobrist::WhiteToMove : 0) ^
+        (WhiteToMove() ? Zobrist::WhiteToMove : 0) ^
         Zobrist::CastlingRights[m_CastlingRights] ^
         (enPassantAvailable ? Zobrist::EnPassantFile[enPassantFile] : 0);
 }
 
-bool Board::WhiteToMove() {
-    return m_WhiteToMove;
+bool Board::WhiteToMove() const {
+    return m_SideToMove == Color::WHITE;
 }
 
 bool Board::IsRepetition() {
@@ -115,35 +115,35 @@ void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
     
     // TODO: This PC_FOOBAR-1 stuff isn't great, need to clean it up
-    ForEachPiece(m_WhiteToMove, PC_PAWN-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_PAWN-1, [&](square_t srcSquare) {
         FindPawnMoves<GenFlags>(srcSquare, out_MoveList);
     });
 
-    ForEachPiece(m_WhiteToMove, PC_KNIGHT-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_KNIGHT-1, [&](square_t srcSquare) {
         for(int vector : KNIGHT_VECTORS) {
             FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
         }
     });
 
-    ForEachPiece(m_WhiteToMove, PC_BISHOP-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_BISHOP-1, [&](square_t srcSquare) {
         for(int vector : DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
     });
 
-    ForEachPiece(m_WhiteToMove, PC_ROOK-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_ROOK-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
     });
 
-    ForEachPiece(m_WhiteToMove, PC_QUEEN-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_QUEEN-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
         }
     });
 
-    ForEachPiece(m_WhiteToMove, PC_KING-1, [&](square_t srcSquare) {
+    ForEachPiece(m_SideToMove, PC_KING-1, [&](square_t srcSquare) {
         for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
             FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
         }
@@ -236,7 +236,7 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
     int promotionRank;
     int movementDirection;
 
-    if(m_Pieces[srcSquare] & PC_WHITE) {
+    if(Piece::Color(m_Pieces[srcSquare]) == Color::WHITE) {
         startingRank = 1;
         promotionRank = 7;
         movementDirection = 0x10;
@@ -288,7 +288,7 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
 }
 
 void Board::FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
-    if(m_WhiteToMove) {
+    if(WhiteToMove()) {
         if(srcSquare == Square::FromCoords(0, 4)) {
             if(m_CastlingRights & CR_WHITE_KING_SIDE) {
                 FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(0, 7), out_MoveList);
@@ -337,9 +337,8 @@ void Board::FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDi
 }
 
 bool Board::IsAttacked(square_t square) {
-    piece_t enemyColor = m_WhiteToMove ? PC_BLACK : PC_WHITE;
-    square_t directionToEnemyPawns = m_WhiteToMove ? 0x10 : -0x10;
-    int pawnAttackDeltas[2] = {directionToEnemyPawns + 0x01, directionToEnemyPawns - 0x01};
+    static const int pawnAttackDeltasByColor[2][2] = {{0x10 + 0x01, 0x10 - 0x01}, {-0x10 + 0x01, -0x10 - 0x01}};
+    piece_t enemyColor = Color::PieceBits(Color::OtherSide(m_SideToMove));
 
     // Find knight attacks
     for(int knightVec : KNIGHT_VECTORS) {
@@ -350,7 +349,7 @@ bool Board::IsAttacked(square_t square) {
     }
 
     // Find pawn attacks
-    for(int pawnVec : pawnAttackDeltas) {
+    for(int pawnVec : pawnAttackDeltasByColor[m_SideToMove]) {
         piece_t attackingSquare = square + pawnVec;
         if(Square::OnBoard(attackingSquare) && m_Pieces[attackingSquare] == (enemyColor | PC_PAWN)) {
             return true;
@@ -394,15 +393,15 @@ Zobrist::hash_t Board::SquareHashCode(square_t square) {
     if(contents == PC_NONE) {
         return 0;
     } else {
-        int color = ((contents & PC_COLORMASK) == PC_WHITE) ? 0 : 1;
-        int piece = (contents & PC_PIECEMASK) - 1;
+        color_t color = Piece::Color(contents);
+        int pieceIndex = Piece::Index(contents);
         int squareNumber = Square::Index64(square);
 
         assert(color >= 0 && color < 2);
         assert(squareNumber >= 0 && squareNumber < 64);
-        assert(piece >= 0 && piece < 6);
+        assert(pieceIndex >= 0 && pieceIndex < 6);
 
-        return Zobrist::Piece[color][piece][squareNumber];
+        return Zobrist::Piece[color][pieceIndex][squareNumber];
     }
 }
 
@@ -430,7 +429,7 @@ bool Board::PieceListsConsistentWithBoard() const {
     // Verify that all pieces in the piece list match the board
     for(int color = 0; color < 2; ++color) {
         for(int pieceNumber = 0; pieceNumber < 6; ++pieceNumber) {
-            int plIdx = PieceLocationsOffset(color == 0, pieceNumber);
+            int plIdx = PieceLocationsOffset(color, pieceNumber);
             while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
                 piece_t expectedPiece = ((color == 0) ? PC_WHITE : PC_BLACK) | (pieceNumber + 1);
                 if(m_Pieces[m_PieceLocations[plIdx]] != expectedPiece) {
@@ -462,9 +461,11 @@ bool Board::PieceListsConsistentWithBoard() const {
     return true;
 }
 
-int Board::PieceLocationsOffset(bool white, int pieceNumber) const {
+int Board::PieceLocationsOffset(color_t color, int pieceNumber) const {
+    static const int ColorOffset[2] = { 0, 60 };
+
     // Returns an index to the start of the piece list for the given piece
-    return (white ? 0 : 60) + (pieceNumber * 10);
+    return ColorOffset[color] + (pieceNumber * 10);
 }
 
 void Board::PieceListRemoveWithUndo(square_t location, UndoMove& undo) {
@@ -472,7 +473,7 @@ void Board::PieceListRemoveWithUndo(square_t location, UndoMove& undo) {
     assert(contents != PC_NONE);
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset(Piece::Color(contents), (contents & PC_PIECEMASK) - 1);
     int piecePlIdx = -1;
 
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
@@ -511,7 +512,7 @@ void Board::MovePieceWithUndo(square_t from, square_t to, UndoMove& undo) {
 
     piece_t fromContents = m_Pieces[from];
     int fromPiece = fromContents & PC_PIECEMASK;
-    int plIdx = PieceLocationsOffset((fromContents & PC_COLORMASK) == PC_WHITE, fromPiece - 1);
+    int plIdx = PieceLocationsOffset(Piece::Color(fromContents), fromPiece - 1);
 
     // Update piece lists
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
@@ -541,7 +542,7 @@ void Board::PlaceNewPiece(square_t location, piece_t contents) {
     assert(m_Pieces[location] == PC_NONE);
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset(Piece::Color(contents), (contents & PC_PIECEMASK) - 1);
     // Find end of the piece list
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
         ++plIdx;
@@ -557,7 +558,7 @@ void Board::PlaceNewPieceWithUndo(square_t location, piece_t contents, UndoMove&
     }
 
     // Update piece list
-    int plIdx = PieceLocationsOffset((contents & PC_COLORMASK) == PC_WHITE, (contents & PC_PIECEMASK) - 1);
+    int plIdx = PieceLocationsOffset(Piece::Color(contents), (contents & PC_PIECEMASK) - 1);
     // Find end of the piece list
     while(m_PieceLocations[plIdx] != PL_END_OF_LIST) {
         ++plIdx;
@@ -577,8 +578,8 @@ void Board::RemovePieceWithUndo(square_t location, UndoMove& undo) {
 }
 
 template<typename VisitorFunction>
-void Board::ForEachPiece(bool white, int pieceNumber, VisitorFunction f) {
-    for(int plIdx = PieceLocationsOffset(white, pieceNumber); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
+void Board::ForEachPiece(color_t color, int pieceNumber, VisitorFunction f) {
+    for(int plIdx = PieceLocationsOffset(color, pieceNumber); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
         f(m_PieceLocations[plIdx]);
     }
 }
@@ -633,7 +634,7 @@ bool Board::Make(Move m) {
         RemovePieceWithUndo(m.SrcSquare, undo);
 
         // Place promoted piece
-        piece_t pieceAtDest = (m.Promotion & PC_PIECEMASK) | (m_WhiteToMove ? PC_WHITE : PC_BLACK);
+        piece_t pieceAtDest = (m.Promotion & PC_PIECEMASK) | Color::PieceBits(m_SideToMove);
         PlaceNewPieceWithUndo(m.DestSquare, pieceAtDest, undo);
     } else {
         // Just a regular move or capture. If castling, this moves the king,
@@ -663,14 +664,14 @@ bool Board::Make(Move m) {
         square_t rookSrcSquare = isKingSide ? (m.DestSquare + 1) : (m.DestSquare - 2);
 
         // Move the rook
-        assert(m_Pieces[rookSrcSquare] == (PC_ROOK | (m_WhiteToMove ? PC_WHITE : PC_BLACK)));
+        assert(m_Pieces[rookSrcSquare] == (PC_ROOK | Color::PieceBits(m_SideToMove)));
         assert(m_Pieces[rookDestSquare] == PC_NONE);
         MovePieceWithUndo(rookSrcSquare, rookDestSquare, undo);
     }
 
     // Update castling rights
     if(isKingMove) {
-        if(m_WhiteToMove) {
+        if(WhiteToMove()) {
             m_CastlingRights &= ~(CR_WHITE_KING_SIDE | CR_WHITE_QUEEN_SIDE);
         } else {
             m_CastlingRights &= ~(CR_BLACK_KING_SIDE | CR_BLACK_QUEEN_SIDE);
@@ -681,13 +682,13 @@ bool Board::Make(Move m) {
     {
         if(isRookMove) {
             // We can't castle using a rook that is moved
-            MarkRookIneligibleForCastling(m_WhiteToMove, m.SrcSquare);
+            MarkRookIneligibleForCastling(m_SideToMove, m.SrcSquare);
         }
         
         if (capturesRook) {
             // We can't castle using a rook that was captured (even if another
             // rook ends up on the same square later, with the king unmoved)
-            MarkRookIneligibleForCastling(!m_WhiteToMove, m.DestSquare);
+            MarkRookIneligibleForCastling(Color::OtherSide(m_SideToMove), m.DestSquare);
         }
     }
 
@@ -701,7 +702,7 @@ bool Board::Make(Move m) {
 
     // XXX: Even if there was an undo above, that toggled the player to
     // the wrong color, so we need to undo that again here.
-    m_WhiteToMove = !m_WhiteToMove;
+    m_SideToMove = Color::OtherSide(m_SideToMove);
 
     return legalMove;
 }
@@ -709,7 +710,7 @@ bool Board::Make(Move m) {
 void Board::Unmake() {
     UndoMove& undo = m_UndoStack.back();
 
-    m_WhiteToMove = !m_WhiteToMove;
+    m_SideToMove = Color::OtherSide(m_SideToMove);
     m_PieceHash = undo.PieceHash;
     m_EnPassantTargetSquare = undo.EnPassantTargetSquare;
     m_CastlingRights = undo.CastlingRights;
@@ -728,10 +729,10 @@ void Board::Unmake() {
     m_UndoStack.pop_back();
 }
 
-void Board::MarkRookIneligibleForCastling(bool rookIsWhite, square_t rookSquare) {
+void Board::MarkRookIneligibleForCastling(color_t rookColor, square_t rookSquare) {
     // Note that rookSquare doesn't have to be a corner square, in which case
     // we do nothing.
-    if(rookIsWhite) {
+    if(rookColor == Color::WHITE) {
         if(rookSquare == 0x00) {
             m_CastlingRights &= ~CR_WHITE_QUEEN_SIDE;
         } else if (rookSquare == 0x07) {
@@ -803,7 +804,7 @@ void Board::ParseFen(const std::string &fen) {
 
     // Side to move
     char sideToMove = fen[i++];
-    m_WhiteToMove = (sideToMove == 'w');
+    m_SideToMove = (sideToMove == 'w') ? Color::WHITE : Color::BLACK;
 
     while(fen[i] == ' ') { ++i; }
 
@@ -863,6 +864,7 @@ int Board::StaticEvaluation() {
     //
     // And instead prefer more color agnostic code.
 
+    static const int SideToMoveFactor[2] = { 1, -1 };
     int scores[2] = {0, 0};
     int pawnsOnFile[2][8] = {{0}};
     int pawnMinRank[2][8] = {{7,7,7,7,7,7,7,7},{7,7,7,7,7,7,7,7}};
@@ -871,7 +873,7 @@ int Board::StaticEvaluation() {
     // Piece square tables and counting pawns on files
     for(int colorIdx = 0; colorIdx < 2; ++colorIdx) {
         // Pawns
-        ForEachPiece(colorIdx == 0, PC_PAWN-1, [&](square_t square) {
+        ForEachPiece(colorIdx, PC_PAWN-1, [&](square_t square) {
             int rank = Square::Rank(square);
             int file = Square::File(square);
             int pstIdx = Square::IndexPST64(square, colorIdx == 0);            
@@ -887,7 +889,7 @@ int Board::StaticEvaluation() {
         // Other pieces
         static_assert((PC_PAWN - 1) == 0, "This loop structure requires pawns have a piece index of 0");        
         for(int pieceIdx = 1; pieceIdx <= 5; ++pieceIdx) {
-            ForEachPiece(colorIdx == 0, pieceIdx, [&](square_t square) {
+            ForEachPiece(colorIdx, pieceIdx, [&](square_t square) {
                 int pstIdx = Square::IndexPST64(square, colorIdx == 0);
                 
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
@@ -964,7 +966,7 @@ int Board::StaticEvaluation() {
 
         // King pawn shield
         int* myLeastAdvancedPawn = (colorIdx == 0) ? pawnMinRank[0] : pawnMaxRank[1];
-        square_t kingSquare = m_PieceLocations[PieceLocationsOffset(colorIdx == 0, PC_KING - 1)];
+        square_t kingSquare = m_PieceLocations[PieceLocationsOffset(colorIdx, PC_KING - 1)];
         if(Square::Rank(kingSquare) == backRank) {
             bool considerShield = false;
             int startFile;
@@ -999,7 +1001,7 @@ int Board::StaticEvaluation() {
         featureScore += m_Features[i] * FEATURE_VALUES[i];
     }
 
-    return (scores[0] - scores[1] + featureScore) * (m_WhiteToMove ? 1 : -1);
+    return (scores[0] - scores[1] + featureScore) * SideToMoveFactor[m_SideToMove];
 }
 
 std::vector<int> Board::EvaluationFeatures() {
@@ -1014,7 +1016,7 @@ bool Board::InCheck() {
     // FIXME: PC_KING - 1 is an ugly construct, and there are other places that
     // play fast and loose with "piece numbers" vs the PC_ constants. Need to
     // harnomize the various usages somehow.
-    int kingPlIdx = PieceLocationsOffset(m_WhiteToMove, PC_KING - 1);
+    int kingPlIdx = PieceLocationsOffset(m_SideToMove, PC_KING - 1);
 
     // There should be exactly one king
     assert(m_PieceLocations[kingPlIdx] != PL_END_OF_LIST);
