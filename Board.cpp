@@ -69,7 +69,7 @@ Zobrist::hash_t Board::Hash() const {
 
     return
         m_PieceHash ^
-        (WhiteToMove() ? Zobrist::WhiteToMove : 0) ^
+        Zobrist::SideToMove[m_SideToMove] ^
         Zobrist::CastlingRights[m_CastlingRights] ^
         (enPassantAvailable ? Zobrist::EnPassantFile[enPassantFile] : 0);
 }
@@ -1080,7 +1080,7 @@ void Board::Test() {
             Zobrist::Piece[0][PC_ROOK - 1][7] ^
             Zobrist::Piece[0][PC_PAWN - 1][15] ^
             Zobrist::Piece[1][PC_KING - 1][63] ^
-            Zobrist::WhiteToMove ^
+            Zobrist::SideToMove[Color::WHITE] ^
             Zobrist::CastlingRights[CR_WHITE_KING_SIDE];
         
         assert(board.Hash() == originalHash);
@@ -1090,7 +1090,8 @@ void Board::Test() {
             Zobrist::Piece[0][PC_PAWN - 1][15] ^ // remove pawn from old square
             Zobrist::Piece[0][PC_PAWN - 1][31] ^ // place pawn on new square
             Zobrist::EnPassantFile[7] ^ // En passant is available on file 7
-            Zobrist::WhiteToMove; // toggle white to move off
+            Zobrist::SideToMove[Color::WHITE] ^ // unset white to move
+            Zobrist::SideToMove[Color::BLACK]; // set black to move
         
         board.Make(move);
 

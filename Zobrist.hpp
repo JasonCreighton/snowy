@@ -11,7 +11,7 @@ namespace Zobrist {
     // Populate tables
     void Init();
 
-    extern hash_t WhiteToMove;
+    extern hash_t SideToMove[2];
     extern hash_t Piece[2][6][64];
     extern hash_t CastlingRights[16];
     extern hash_t EnPassantFile[8];
