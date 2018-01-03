@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cassert>
 
 class Board {
 public:
@@ -15,44 +16,46 @@ public:
     typedef std::uint8_t piece_t;
     typedef std::uint8_t square_t;
 
-    static const piece_t PC_PIECEMASK = 0x07;
-
-    static const piece_t PC_NONE = 0x00;
-
-    static const piece_t PC_PAWN = 0x01;
-    static const piece_t PC_KNIGHT = 0x02;
-    static const piece_t PC_BISHOP = 0x03;
-    static const piece_t PC_ROOK = 0x04;    
-    static const piece_t PC_QUEEN = 0x05;
-    static const piece_t PC_KING = 0x06;
-    
-    static const piece_t PC_COLORMASK = 0x80;
-    static const piece_t PC_BLACK = 0x00;
-    static const piece_t PC_WHITE = 0x80;
-
     class Color {
     public:
         static const color_t WHITE = 0;
         static const color_t BLACK = 1;
         static color_t OtherSide(color_t color) { return !color; };
-        static piece_t PieceBits(color_t color) {
-            // TODO: This method is a little weird (does it belong here or in the
-            // Piece class?) and I think we would be better served with some
-            // more abstracted way to construct a piece_t
-            static const color_t ColorToPieceBits[2] = { PC_WHITE, PC_BLACK };
-
-            return ColorToPieceBits[color];
-        }
     };
 
     class Piece {
     public:
+        // Argument values for "pieceIndex"
+        static const int PAWN = 0;
+        static const int KNIGHT = 1;
+        static const int BISHOP = 2;
+        static const int ROOK = 3;
+        static const int QUEEN = 4;
+        static const int KING = 5;
+
+        // Special piece_t value that means "no piece"
+        static const piece_t NONE = 6;
+
+        static const int COLOR_SHIFT = 3;
+        static const piece_t INDEX_MASK = 0x7;
+
+        static piece_t Create(color_t color, int pieceIndex) {
+            assert(pieceIndex >= PAWN && pieceIndex <= KING);
+            return (color << COLOR_SHIFT) | pieceIndex;
+        }
         static color_t Color(piece_t piece) {
-            // TODO: Tweak the piece_t bit layout to make this just a shift
-            return (piece & PC_COLORMASK) == PC_WHITE ? Color::WHITE : Color::BLACK;
+            assert(piece != NONE);
+            color_t color = piece >> 3;
+
+            // No high bits should be set
+            assert((color & 1) == color);
+
+            return color;
         }
         static int Index(piece_t piece) {
-            return (piece & PC_PIECEMASK) - 1;
+            // NOTE: Might return NONE, depends on calling context whether this is
+            // an error condition.
+            return piece & INDEX_MASK;
         }
     };
 
@@ -78,7 +81,7 @@ public:
     struct Move {
         square_t SrcSquare;
         square_t DestSquare;
-        piece_t Promotion;
+        std::uint8_t Promotion;
         bool IsCapture;
         // TOOD: Need to figure out if I care how big the Move structs are
         int Score;

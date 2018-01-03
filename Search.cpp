@@ -327,7 +327,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
                     m_MoveScoreHistogram[move.Score] += 1;
                     m_BetaCutoffHistogram[numLegalMoves] += 1;
 
-                    if(!move.IsCapture && move.Promotion == 0) {
+                    if(!move.IsCapture && move.Promotion == Board::Piece::NONE) {
                         // Was a quiet move, save it as a killer
                         UpdateKillers(plyIndex, move);
                     }
