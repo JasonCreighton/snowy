@@ -874,7 +874,7 @@ int Board::StaticEvaluation() {
         ForEachPiece(colorIdx, Piece::PAWN, [&](square_t square) {
             int rank = Square::Rank(square);
             int file = Square::File(square);
-            int pstIdx = Square::IndexPST64(square, colorIdx == 0);            
+            int pstIdx = Square::IndexPST64(square, colorIdx);
 
             scores[colorIdx] += PIECE_VALUES[Piece::PAWN];
             scores[colorIdx] += PIECE_ON_SQUARE_VALUES[Piece::PAWN][pstIdx];
@@ -888,7 +888,7 @@ int Board::StaticEvaluation() {
         static_assert(Piece::PAWN == 0, "This loop structure requires pawns have a piece index of 0");        
         for(int pieceIdx = 1; pieceIdx <= 5; ++pieceIdx) {
             ForEachPiece(colorIdx, pieceIdx, [&](square_t square) {
-                int pstIdx = Square::IndexPST64(square, colorIdx == 0);
+                int pstIdx = Square::IndexPST64(square, colorIdx);
                 
                 scores[colorIdx] += PIECE_VALUES[pieceIdx];
                 scores[colorIdx] += PIECE_ON_SQUARE_VALUES[pieceIdx][pstIdx];
