@@ -21,7 +21,7 @@
 
 namespace {
     void ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl, int& out_softMoveTime_ms, int& out_hardMoveTime_ms) {
-        const int TIME_MANAGEMENT_MARGIN_MS = 1000;
+        const int TIME_MANAGEMENT_MARGIN_MS = 100;
 
         // No move time specified, so no time limit
         if(timeLeft_ms == -1) {
