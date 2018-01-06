@@ -71,6 +71,7 @@ private:
     Board &m_Board;
 
     std::chrono::time_point<std::chrono::high_resolution_clock> m_SearchStartTime;
+    int m_TimeLimitCounter;
 
     std::vector<long> m_BetaCutoffHistogram;
     std::vector<long> m_BestMoveHistogram;

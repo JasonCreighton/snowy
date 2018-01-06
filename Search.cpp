@@ -21,6 +21,7 @@ Search::Search(Board &board) :
     m_Cond_WorkerThreadShutDownRequested(false),
     m_StopSearchRequested(false),
     m_Board(board),
+    m_TimeLimitCounter(0),
     m_BetaCutoffHistogram(250),
     m_BestMoveHistogram(250),
     m_MoveScoreHistogram(200),
@@ -124,6 +125,7 @@ void Search::RunSearch() {
     // No need to acquire mutex, SearchThreadMain() called us and is already
     // holding it.
     m_SearchStartTime = std::chrono::high_resolution_clock::now();
+    m_TimeLimitCounter = 0;
 
     std::vector<Board::Move> pv;
 
@@ -235,10 +237,9 @@ void Search::RunSearch() {
 }
 
 void Search::CheckTimeLimit() {
-    static int counter = 0;
-    counter = (counter + 1) & 0xFFF;
+    m_TimeLimitCounter = (m_TimeLimitCounter + 1) & 0xFFF;
 
-    if(counter == 0 && m_SearchParameters.HardMoveTime_ms != -1) {
+    if(m_TimeLimitCounter == 0 && m_SearchParameters.HardMoveTime_ms != -1) {
         auto timeElapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
 
         if(timeElapsed_ms.count() > m_SearchParameters.HardMoveTime_ms) {
