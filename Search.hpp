@@ -67,6 +67,7 @@ private:
     std::thread m_WorkerThread;
 
     Parameters m_SearchParameters;
+    int m_EffectiveHardMoveTime_ms;
 
     Board &m_Board;
 

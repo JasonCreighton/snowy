@@ -20,6 +20,7 @@ Search::Search(Board &board) :
     m_Cond_SearchPending(false),
     m_Cond_WorkerThreadShutDownRequested(false),
     m_StopSearchRequested(false),
+    m_EffectiveHardMoveTime_ms(-1),
     m_Board(board),
     m_TimeLimitCounter(0),
     m_BetaCutoffHistogram(250),
@@ -145,6 +146,13 @@ void Search::RunSearch() {
         m_HashTableScoreHits = 0;
         m_HashTableMoveHits = 0;
 
+        // Time limit is disabled for depth=1, since need to complete at least
+        // the first depth in order to produce a "bestmove".
+        // 
+        // TODO: In theory a "stop" could come over UCI before we finish the first
+        // depth, causing us to crash because our "pv" array will be empty.
+        m_EffectiveHardMoveTime_ms = (depth > 1) ? m_SearchParameters.HardMoveTime_ms : -1;
+
         auto iterationStartTime = std::chrono::high_resolution_clock::now();
         if(!m_SearchParameters.BruteForce) {
             score = MainSearch(-SCORE_INF, SCORE_INF, 0, depth);
@@ -239,10 +247,10 @@ void Search::RunSearch() {
 void Search::CheckTimeLimit() {
     m_TimeLimitCounter = (m_TimeLimitCounter + 1) & 0xFFF;
 
-    if(m_TimeLimitCounter == 0 && m_SearchParameters.HardMoveTime_ms != -1) {
+    if(m_TimeLimitCounter == 0 && m_EffectiveHardMoveTime_ms != -1) {
         auto timeElapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
 
-        if(timeElapsed_ms.count() > m_SearchParameters.HardMoveTime_ms) {
+        if(timeElapsed_ms.count() > m_EffectiveHardMoveTime_ms) {
             m_StopSearchRequested = true;
         }
     }
