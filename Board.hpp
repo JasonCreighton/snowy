@@ -116,6 +116,7 @@ public:
     template<int GenFlags = GEN_ALL>
     void FindPseudoLegalMoves(std::vector<Move> &out_MoveList);
 
+    bool IsPseudoLegal(Move move);
     bool Make(Move m);
     void Unmake();
     void ParseFen(const std::string &fen);
@@ -161,15 +162,22 @@ private:
         piece_t OldValue;
     };
 
-    template<int GenFlags>
-    void FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList);
+    template<int GenFlags, typename GenFunction>
+    void FindMovesFromSquare(int pieceIndex, square_t srcSquare, GenFunction genMove);
 
-    template<int GenFlags>
-    void FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
+    template<int GenFlags, typename GenFunction>
+    void FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, GenFunction genMove);
+
+    template<int GenFlags, typename GenFunction>
+    void FindPawnMoves(square_t srcSquare, GenFunction genMove);
     
+    template<typename GenFunction>
+    void FindCastlingMoves(square_t srcSquare, GenFunction genMove);
+
+    template<typename GenFunction>
+    void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, GenFunction genMove);
+
     void MarkRookIneligibleForCastling(color_t rookColor, square_t rookSquare);
-    void FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList);
-    void FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList);
     bool IsAttacked(square_t square);
     Zobrist::hash_t SquareHashCode(square_t square);
     void SetSquare(square_t square, piece_t contents);

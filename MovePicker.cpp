@@ -3,6 +3,7 @@
 
 #include "MovePicker.hpp"
 #include "Constants.hpp"
+#include "IO.hpp"
 
 #include <vector>
 #include <cassert>
@@ -19,8 +20,12 @@ MovePicker<GenFlags>::MovePicker(Board& board, std::vector<Board::Move>& moveLis
 
 template<int GenFlags>
 void MovePicker<GenFlags>::SetHashMove(Board::Move move) {
-    m_HashMove = move;
-    m_Phase = Phase::HASH_MOVE;
+    if(m_Board.IsPseudoLegal(move)) {
+        m_HashMove = move;
+        m_Phase = Phase::HASH_MOVE;
+    } else {
+        IO::PutInfo("WARNING: MovePicker::SetHashMove() got move that was not pseudo-legal!");
+    }
 }
 
 template<int GenFlags>

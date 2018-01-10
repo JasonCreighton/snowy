@@ -113,49 +113,64 @@ bool Board::IsEligibleForFiftyMoveDraw() {
 template<int GenFlags>
 void Board::FindPseudoLegalMoves(std::vector<Move> &out_MoveList) {
     out_MoveList.clear();
-    
-    ForEachPiece(m_SideToMove, Piece::PAWN, [&](square_t srcSquare) {
-        FindPawnMoves<GenFlags>(srcSquare, out_MoveList);
-    });
 
-    ForEachPiece(m_SideToMove, Piece::KNIGHT, [&](square_t srcSquare) {
-        for(int vector : KNIGHT_VECTORS) {
-            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
-        }
-    });
+    auto genMove = [&](Move m) {
+        out_MoveList.push_back(m);
+    };
 
-    ForEachPiece(m_SideToMove, Piece::BISHOP, [&](square_t srcSquare) {
-        for(int vector : DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
-        }
-    });
-
-    ForEachPiece(m_SideToMove, Piece::ROOK, [&](square_t srcSquare) {
-        for(int vector : ORTHOGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
-        }
-    });
-
-    ForEachPiece(m_SideToMove, Piece::QUEEN, [&](square_t srcSquare) {
-        for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, out_MoveList);
-        }
-    });
-
-    ForEachPiece(m_SideToMove, Piece::KING, [&](square_t srcSquare) {
-        for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-            FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, out_MoveList);
-        }
-
-        // Check for castling
-        if(GenFlags & GEN_NONCAPTURES) {
-            FindCastlingMoves(srcSquare, out_MoveList);
-        }
-    });
+    for(int pieceIndex = 0; pieceIndex < 6; ++pieceIndex) {
+        ForEachPiece(m_SideToMove, pieceIndex, [&](square_t srcSquare) {
+            FindMovesFromSquare<GenFlags>(pieceIndex, srcSquare, genMove);
+        });
+    }
 }
 
-template<int GenFlags>
-void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, std::vector<Move> &out_MoveList) {
+template<int GenFlags, typename GenFunction>
+void Board::FindMovesFromSquare(int pieceIndex, square_t srcSquare, GenFunction genMove) {
+    switch(pieceIndex) {
+        case Piece::PAWN:
+            FindPawnMoves<GenFlags>(srcSquare, genMove);
+            break;
+        
+        case Piece::KNIGHT:
+            for(int vector : KNIGHT_VECTORS) {
+                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, genMove);
+            }
+            break;
+        
+        case Piece::BISHOP:
+            for(int vector : DIAGONAL_VECTORS) {
+                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+            }
+            break;
+        
+        case Piece::ROOK:
+            for(int vector : ORTHOGONAL_VECTORS) {
+                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+            }
+            break;
+        
+        case Piece::QUEEN:
+            for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
+                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+            }
+            break;
+        
+        case Piece::KING:
+            for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
+                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, genMove);
+            }
+
+            // Check for castling
+            if(GenFlags & GEN_NONCAPTURES) {
+                FindCastlingMoves(srcSquare, genMove);
+            }
+            break;
+    }
+}
+
+template<int GenFlags, typename GenFunction>
+void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, GenFunction genMove) {
     for(square_t destSquare = srcSquare + direction; Square::OnBoard(destSquare) && slideDistance > 0; destSquare += direction, --slideDistance) {
         piece_t destContents = m_Pieces[destSquare];
         bool isCapture = false;
@@ -217,10 +232,10 @@ void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int directio
                 if(pieceIndex == Piece::QUEEN) {
                     m.Score += 100;
                 }
-                out_MoveList.push_back(m);
+                genMove(m);
             }
         } else {
-            out_MoveList.push_back(m);
+            genMove(m);
         }
         
         if(isCapture) {
@@ -229,8 +244,8 @@ void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int directio
     }
 }
 
-template<int GenFlags>
-void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
+template<int GenFlags, typename GenFunction>
+void Board::FindPawnMoves(square_t srcSquare, GenFunction genMove) {
     int startingRank;
     int promotionRank;
     int movementDirection;
@@ -261,12 +276,12 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
     bool generateCaptures = (GenFlags & GEN_CAPTURES) || generateAll;
 
     if(generateMovement) {
-        FindMovesInDirection<GEN_NONCAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_NONCAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, genMove);
     }
 
     if(generateCaptures) {
-        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, out_MoveList);
-        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, out_MoveList);
+        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, genMove);
+        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, genMove);
     }
 
     // En Passant
@@ -281,34 +296,36 @@ void Board::FindPawnMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
             enPassant.Promotion = Piece::NONE;
             enPassant.Score = 0;
 
-            out_MoveList.push_back(enPassant);
+            genMove(enPassant);
         }
     }
 }
 
-void Board::FindCastlingMoves(square_t srcSquare, std::vector<Move> &out_MoveList) {
+template<typename GenFunction>
+void Board::FindCastlingMoves(square_t srcSquare, GenFunction genMove) {
     if(WhiteToMove()) {
         if(srcSquare == Square::FromCoords(0, 4)) {
             if(m_CastlingRights & CR_WHITE_KING_SIDE) {
-                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(0, 7), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(0, 7), genMove);
             }
             if(m_CastlingRights & CR_WHITE_QUEEN_SIDE) {
-                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(0, 0), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(0, 0), genMove);
             }
         }
     } else {
         if(srcSquare == Square::FromCoords(7, 4)) {
             if(m_CastlingRights & CR_BLACK_KING_SIDE) {
-                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(7, 7), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, 1, Square::FromCoords(7, 7), genMove);
             }
             if(m_CastlingRights & CR_BLACK_QUEEN_SIDE) {
-                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(7, 0), out_MoveList);
+                FindCastlingMovesHelper(srcSquare, -1, Square::FromCoords(7, 0), genMove);
             }
         }
     }
 }
 
-void Board::FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, std::vector<Move> &out_MoveList) {
+template<typename GenFunction>
+void Board::FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDirection, square_t rookStartSquare, GenFunction genMove) {
     square_t kingDestSquare = kingStartSquare + (kingMovementDirection * 2);
 
     // Check for empty squares
@@ -332,7 +349,7 @@ void Board::FindCastlingMovesHelper(square_t kingStartSquare, int kingMovementDi
     m.IsCapture = false;
     m.Promotion = Piece::NONE;
     m.Score = MOVE_SCORE_CASTLING;
-    out_MoveList.push_back(m);
+    genMove(m);
 }
 
 bool Board::IsAttacked(square_t square) {
@@ -580,6 +597,30 @@ void Board::ForEachPiece(color_t color, int pieceNumber, VisitorFunction f) {
     for(int plIdx = PieceLocationsOffset(color, pieceNumber); m_PieceLocations[plIdx] != PL_END_OF_LIST; ++plIdx) {
         f(m_PieceLocations[plIdx]);
     }
+}
+
+bool Board::IsPseudoLegal(Move m) {
+    // There has to be a piece to move
+    if(m_Pieces[m.SrcSquare] == Piece::NONE) {
+        return false;
+    }
+
+    // We can only move one of our pieces
+    if(Piece::Color(m_Pieces[m.SrcSquare]) != m_SideToMove) {
+        return false;
+    }
+
+    // Kind of inefficient, we just scan through the list of moves for this piece
+    // and see if it's there
+    bool foundMove = false;
+
+    FindMovesFromSquare<GEN_ALL>(Piece::Index(m_Pieces[m.SrcSquare]), m.SrcSquare, [&](Move o) {
+        if((m.SrcSquare == o.SrcSquare) && (m.DestSquare == o.DestSquare) && (m.Promotion == o.Promotion)) {
+            foundMove = true;
+        }
+    });
+
+    return foundMove;
 }
 
 bool Board::Make(Move m) {
