@@ -166,7 +166,7 @@ private:
     void FindMovesFromSquare(int pieceIndex, square_t srcSquare, GenFunction genMove);
 
     template<int GenFlags, typename GenFunction>
-    void FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, GenFunction genMove);
+    void FindMovesInDirection(square_t srcSquare, int direction, int slideDistance, GenFunction genMove);
 
     template<int GenFlags, typename GenFunction>
     void FindPawnMoves(square_t srcSquare, GenFunction genMove);

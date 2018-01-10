@@ -134,31 +134,31 @@ void Board::FindMovesFromSquare(int pieceIndex, square_t srcSquare, GenFunction 
         
         case Piece::KNIGHT:
             for(int vector : KNIGHT_VECTORS) {
-                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, genMove);
+                FindMovesInDirection<GenFlags>(srcSquare, vector, 1, genMove);
             }
             break;
         
         case Piece::BISHOP:
             for(int vector : DIAGONAL_VECTORS) {
-                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+                FindMovesInDirection<GenFlags>(srcSquare, vector, 8, genMove);
             }
             break;
         
         case Piece::ROOK:
             for(int vector : ORTHOGONAL_VECTORS) {
-                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+                FindMovesInDirection<GenFlags>(srcSquare, vector, 8, genMove);
             }
             break;
         
         case Piece::QUEEN:
             for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 8, false, genMove);
+                FindMovesInDirection<GenFlags>(srcSquare, vector, 8, genMove);
             }
             break;
         
         case Piece::KING:
             for(int vector : ORTHOGONAL_AND_DIAGONAL_VECTORS) {
-                FindMovesInDirection<GenFlags>(m_Pieces[srcSquare], srcSquare, vector, 1, false, genMove);
+                FindMovesInDirection<GenFlags>(srcSquare, vector, 1, genMove);
             }
 
             // Check for castling
@@ -170,14 +170,14 @@ void Board::FindMovesFromSquare(int pieceIndex, square_t srcSquare, GenFunction 
 }
 
 template<int GenFlags, typename GenFunction>
-void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int direction, int slideDistance, bool isPromotion, GenFunction genMove) {
+void Board::FindMovesInDirection(square_t srcSquare, int direction, int slideDistance, GenFunction genMove) {
     for(square_t destSquare = srcSquare + direction; Square::OnBoard(destSquare) && slideDistance > 0; destSquare += direction, --slideDistance) {
         piece_t destContents = m_Pieces[destSquare];
         bool isCapture = false;
 
         if(destContents == Piece::NONE) {
             // Empty square, everything is fine
-        } else if(Piece::Color(destContents) == Piece::Color(piece)) {
+        } else if(Piece::Color(destContents) == m_SideToMove) {
             // Same color piece, we can't do anything
             break;
         } else {
@@ -222,21 +222,7 @@ void Board::FindMovesInDirection(piece_t piece, square_t srcSquare, int directio
             m.Score = MVV + LVA;
         }
 
-        if(isPromotion) {
-            static const int pieceIndexes[4] = {Piece::BISHOP, Piece::KNIGHT, Piece::ROOK, Piece::QUEEN};
-            for(piece_t pieceIndex : pieceIndexes) {
-                m.Promotion = pieceIndex;
-                // Could be both a capture and a promotion, so we modify the previous score.
-                // We only boost the score of queen promotions, underpromotions
-                // are probably no better than any other move
-                if(pieceIndex == Piece::QUEEN) {
-                    m.Score += 100;
-                }
-                genMove(m);
-            }
-        } else {
-            genMove(m);
-        }
+        genMove(m);
         
         if(isCapture) {
             break;
@@ -268,6 +254,28 @@ void Board::FindPawnMoves(square_t srcSquare, GenFunction genMove) {
 
     bool isPromotion = (Square::Rank(srcSquare + movementDirection) == promotionRank);
 
+    // For pawn moves, we have to sometimes generate promotions, so we use our
+    // own GenFunction that piggy-backs on the GenFunction that was passed in.
+    auto pawnGenMove = [&](Move move) {
+        if(isPromotion) {
+            static const int pieceIndexes[4] = {Piece::BISHOP, Piece::KNIGHT, Piece::ROOK, Piece::QUEEN};
+            for(int pieceIndex : pieceIndexes) {
+                Move promotionMove = move;
+
+                promotionMove.Promotion = pieceIndex;
+                // Could be both a capture and a promotion, so we modify the previous score.
+                // We only boost the score of queen promotions, underpromotions
+                // are probably no better than any other move
+                if(pieceIndex == Piece::QUEEN) {
+                    promotionMove.Score += 100;
+                }
+                genMove(promotionMove);
+            }
+        } else {
+            genMove(move);
+        }
+    };
+
     // GEN_PROMOTIONS is handled a little special: We generate all
     // promotions, capturing and non-capturing, regardless of whether that
     // particular type of move would otherwise be generated.
@@ -276,12 +284,12 @@ void Board::FindPawnMoves(square_t srcSquare, GenFunction genMove) {
     bool generateCaptures = (GenFlags & GEN_CAPTURES) || generateAll;
 
     if(generateMovement) {
-        FindMovesInDirection<GEN_NONCAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection, movementDistance, isPromotion, genMove);
+        FindMovesInDirection<GEN_NONCAPTURES>(srcSquare, movementDirection, movementDistance, pawnGenMove);
     }
 
     if(generateCaptures) {
-        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection + 0x01, 1, isPromotion, genMove);
-        FindMovesInDirection<GEN_CAPTURES>(m_Pieces[srcSquare], srcSquare, movementDirection - 0x01, 1, isPromotion, genMove);
+        FindMovesInDirection<GEN_CAPTURES>(srcSquare, movementDirection + 0x01, 1, pawnGenMove);
+        FindMovesInDirection<GEN_CAPTURES>(srcSquare, movementDirection - 0x01, 1, pawnGenMove);
     }
 
     // En Passant
