@@ -4,10 +4,27 @@ Snowy is a UCI chess engine written in C++. It uses an array-based board
 representation (ie, not bitboard), and searches in a straightforward minimax
 manner, with no depth extensions or reductions. The playing strength has not
 been precisely evaluated, but it is somewhere between
-[TSCP](http://www.tckerrigan.com/Chess/TSCP/) and
-[faile](http://faile.sourceforge.net/).
+[faile](http://faile.sourceforge.net/) and
+[Vice](http://bluefever.net/Downloads/ViceReadMe.html).
 
 It is available under the terms of the MIT license.
+
+## Building
+
+On Linux, you can build and run with:
+
+```
+$ make
+$ ./build/release
+```
+
+Other UNIX-like systems with GNU Make may work, but have not been tested.
+
+The default is to build with Clang, if you wish to use GCC you can build with:
+
+```
+$ make CXX=g++
+```
 
 ## Acknowledgements
 
