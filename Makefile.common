@@ -4,7 +4,11 @@
 # -D_GLIBCXX_DEBUG needed to get clang to emit debug information for libstdc++
 # See: https://stackoverflow.com/questions/41745527/cannot-view-stdstring-when-compiled-with-clang
 DEBUGFLAGS=-g -D_GLIBCXX_DEBUG
+# I don't find much difference in performance between clang's -O2 and -O3 (I
+# think because clang's -O2 is already fairly aggressive), so we use -O2 for
+# clang builds, but gcc shows a decent improvement with -O3 over -O2.
 RELEASEFLAGS=-DNDEBUG -O2 -flto
+GCCRELEASEFLAGS=-DNDEBUG -O3 -flto
 
 BUILDDIR=build
 HEADERS=$(wildcard *.hpp)
@@ -41,7 +45,7 @@ endif
 ifeq ($(CONFIG),win64)
 	# The -posix version is required for threading
 	CXX=x86_64-w64-mingw32-g++-posix
-	CXXFLAGS+=$(RELEASEFLAGS)
+	CXXFLAGS+=$(GCCRELEASEFLAGS)
 	BIN=$(BUILDDIR)/snowy_x64.exe
 	# Need to statically link to avoid runtime dependency on pthread DLL
 	LDFLAGS=-static -s
