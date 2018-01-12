@@ -9,6 +9,10 @@ been precisely evaluated, but it is somewhere between
 
 It is available under the terms of the MIT license.
 
+## Binaries
+
+Windows binaries can be found in the [Releases section](https://github.com/JasonCreighton/snowy/releases).
+
 ## Building
 
 On Linux, you can build and run with:
