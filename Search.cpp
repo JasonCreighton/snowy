@@ -25,7 +25,6 @@ Search::Search(Board &board) :
     m_TimeLimitCounter(0),
     m_BetaCutoffHistogram(250),
     m_BestMoveHistogram(250),
-    m_MoveScoreHistogram(200),
     m_HashTableScoreHits(0),
     m_HashTableMoveHits(0),
     m_NumMainNodes(0),
@@ -132,7 +131,6 @@ void Search::RunSearch() {
 
     std::fill(m_BetaCutoffHistogram.begin(), m_BetaCutoffHistogram.end(), 0);
     std::fill(m_BestMoveHistogram.begin(), m_BestMoveHistogram.end(), 0);
-    std::fill(m_MoveScoreHistogram.begin(), m_MoveScoreHistogram.end(), 0);
     
     m_TT.AdvanceTime();
 
@@ -235,12 +233,6 @@ void Search::RunSearch() {
                 IO::PutInfo(std::to_string(i) + " " + std::to_string(m_BestMoveHistogram[i]) + " " + std::to_string(m_BetaCutoffHistogram[i]));
             }
         }
-        IO::PutInfo("Move score histogram:");
-        for(int i = 0; i < 200; ++i) {
-            if(m_MoveScoreHistogram[i] != 0) {
-                IO::PutInfo(std::to_string(i) + " " + std::to_string(m_MoveScoreHistogram[i]));
-            }
-        }
     }
 }
 
@@ -310,7 +302,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
         }
     
         Board::Move move;
-        int bestMoveIndex;
+        int bestMoveIndex = -1;
         while(movePicker.Next(move)) {
             if(m_Board.Make(move)) {
                 ++m_NumMainNodes;
@@ -333,7 +325,6 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
                     // This is a cut-node, so we insert a lower bound into the hash table
                     m_TT.Insert(thisNodeHash, moveScore, TranspositionTable::ScoreBound::LOWER_BOUND, depth, plyIndex, &move);
 
-                    m_MoveScoreHistogram[move.Score] += 1;
                     m_BetaCutoffHistogram[numLegalMoves] += 1;
 
                     if(!move.IsCapture && move.Promotion == Board::Piece::NONE) {
@@ -393,7 +384,6 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
 
         if(alphaWasImproved) {
             m_BestMoveHistogram[bestMoveIndex] += 1;
-            m_MoveScoreHistogram[bestMove.Score] += 1;
         }
 
         return score;

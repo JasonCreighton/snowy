@@ -76,7 +76,6 @@ private:
 
     std::vector<long> m_BetaCutoffHistogram;
     std::vector<long> m_BestMoveHistogram;
-    std::vector<long> m_MoveScoreHistogram;
     std::int64_t m_HashTableScoreHits;
     std::int64_t m_HashTableMoveHits;
     std::int64_t m_NumMainNodes;
