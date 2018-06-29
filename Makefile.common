@@ -23,10 +23,9 @@ OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
 BIN=$(BUILDDIR)/$(CONFIG)
 CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIG)
 
-PCHEXTENSION=pch
 PCHHEADER=Common.hpp
 CLONEDPCHHEADER=$(OBJDIR)/$(PCHHEADER)
-PCHFILE=$(OBJDIR)/$(PCHHEADER).$(PCHEXTENSION)
+PCHFILE=$(OBJDIR)/$(PCHHEADER).gch
 
 ifeq ($(CONFIG),debug)
 	CXXFLAGS+=$(DEBUGFLAGS)
@@ -55,11 +54,6 @@ ifeq ($(CONFIG),win64)
 	# Need to statically link to avoid runtime dependency on pthread DLL
 	LDFLAGS=-static -s
 endif
-ifneq (,$(findstring g++,$(CXX)))
-	# GCC uses .gch for precompiled headers
-	PCHEXTENSION=gch
-endif
-
 
 .PHONY: bin prep clean force
 
