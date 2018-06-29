@@ -3,12 +3,8 @@
 
 #pragma once
 
+#include "Common.hpp"
 #include "Zobrist.hpp"
-
-#include <vector>
-#include <string>
-#include <cstdint>
-#include <cassert>
 
 class Board {
 public:

@@ -1,18 +1,13 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "UCI.hpp"
 #include "Board.hpp"
 #include "Search.hpp"
 #include "IO.hpp"
 #include "Constants.hpp"
 #include "Util.hpp"
-
-#include <iostream>
-#include <string>
-#include <sstream>
-#include <list>
-#include <cassert>
 
 // In case someone wants to use a different build environment
 #ifndef GIT_VERSION

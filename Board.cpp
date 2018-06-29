@@ -1,14 +1,11 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "Board.hpp"
 #include "IO.hpp"
 #include "Util.hpp"
 
-#include <iostream>
-#include <cctype> // tolower()
-#include <cstring> // memset()
-#include <cassert>
 
 namespace {
     #include "StaticEvaluationParameters.hpp"

@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include <sstream>
-#include <iomanip>
+#include "Common.hpp"
 
 template< typename T >
 std::string IntegerToHexString( T i ) {

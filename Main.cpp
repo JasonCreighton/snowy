@@ -1,14 +1,12 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "UCI.hpp"
 #include "PerftTest.hpp"
 #include "Zobrist.hpp"
 #include "IO.hpp"
 #include "Board.hpp"
-
-#include <iostream>
-#include <cstring>
 
 namespace {
     void Usage(const char *programName) {

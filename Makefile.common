@@ -23,6 +23,11 @@ OBJECTS=$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
 BIN=$(BUILDDIR)/$(CONFIG)
 CXXFLAGSFILE=$(BUILDDIR)/cxxflags_$(CONFIG)
 
+PCHEXTENSION=pch
+PCHHEADER=Common.hpp
+CLONEDPCHHEADER=$(OBJDIR)/$(PCHHEADER)
+PCHFILE=$(OBJDIR)/$(PCHHEADER).$(PCHEXTENSION)
+
 ifeq ($(CONFIG),debug)
 	CXXFLAGS+=$(DEBUGFLAGS)
 endif
@@ -50,6 +55,11 @@ ifeq ($(CONFIG),win64)
 	# Need to statically link to avoid runtime dependency on pthread DLL
 	LDFLAGS=-static -s
 endif
+ifneq (,$(findstring g++,$(CXX)))
+	# GCC uses .gch for precompiled headers
+	PCHEXTENSION=gch
+endif
+
 
 .PHONY: bin prep clean force
 
@@ -59,8 +69,14 @@ prep:
 	@mkdir -p $(OBJDIR)
 
 clean:
-	rm -f $(BIN) $(OBJECTS) $(CXXFLAGSFILE)
+	rm -f $(BIN) $(OBJECTS) $(PCHFILE) $(CLONEDPCHHEADER) $(CXXFLAGSFILE)
 	if [ -d $(OBJDIR) ]; then rmdir $(OBJDIR); fi
+
+$(CLONEDPCHHEADER): $(PCHHEADER)
+	cp -f $(PCHHEADER) $(CLONEDPCHHEADER)
+
+$(PCHFILE): $(CLONEDPCHHEADER)
+	$(CXX) $(CXXFLAGS) -x c++-header $(PCHHEADER) -o $(PCHFILE)
 
 $(CXXFLAGSFILE): force
 	@echo '$(CXX) $(CXXFLAGS)' | cmp --silent - $@ || echo '$(CXX) $(CXXFLAGS)' > $@
@@ -68,5 +84,5 @@ $(CXXFLAGSFILE): force
 $(BIN): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(BIN) $(LDFLAGS) $(LDLIBS)
 
-$(OBJDIR)/%.o : %.cpp $(HEADERS) $(CXXFLAGSFILE)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJDIR)/%.o : %.cpp $(HEADERS) $(CXXFLAGSFILE) $(PCHFILE)
+	$(CXX) $(CXXFLAGS) -include $(CLONEDPCHHEADER) -c $< -o $@

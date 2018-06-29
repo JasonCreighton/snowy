@@ -3,10 +3,9 @@
 
 #pragma once
 
+#include "Common.hpp"
 #include "Board.hpp"
 #include "Search.hpp"
-
-#include <string>
 
 class UCI {
 public:

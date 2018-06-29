@@ -1,15 +1,10 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "PerftTest.hpp"
 #include "Board.hpp"
 #include "Search.hpp"
-
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
-#include <vector>
 
 bool RunPerftTestSuite(const char *testSuiteFilename) {
     Board board;

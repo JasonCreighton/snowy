@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <string>
+#include "Common.hpp"
 
 namespace IO {
     void OpenLogFile(const std::string& filename);

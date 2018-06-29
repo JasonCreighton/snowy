@@ -3,11 +3,9 @@
 
 #pragma once
 
+#include "Common.hpp"
 #include "Zobrist.hpp"
 #include "Board.hpp"
-
-#include <cstdint>
-#include <vector>
 
 class TranspositionTable {
 public:

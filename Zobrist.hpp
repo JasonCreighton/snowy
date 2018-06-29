@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include "Common.hpp"
 
 namespace Zobrist {
     typedef std::uint64_t hash_t;

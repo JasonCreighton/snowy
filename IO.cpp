@@ -1,11 +1,8 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "IO.hpp"
-
-#include <iostream>
-#include <fstream>
-#include <mutex>
 
 namespace {
     std::mutex f_Lock;

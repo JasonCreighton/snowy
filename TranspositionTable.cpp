@@ -1,14 +1,10 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "TranspositionTable.hpp"
 #include "Zobrist.hpp"
 #include "Constants.hpp"
-
-#include <vector>
-#include <cmath>
-#include <cassert>
-#include <limits>
 
 TranspositionTable::TranspositionTable(int bytesLog2) :
     m_Now(0)

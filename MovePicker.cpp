@@ -1,12 +1,10 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "MovePicker.hpp"
 #include "Constants.hpp"
 #include "IO.hpp"
-
-#include <vector>
-#include <cassert>
 
 template<int GenFlags>
 MovePicker<GenFlags>::MovePicker(Board& board, std::vector<Board::Move>& moveList, Board::Move* killersArray) :

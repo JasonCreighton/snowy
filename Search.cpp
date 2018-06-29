@@ -1,20 +1,11 @@
 // Copyright (c) 2017 Jason Creighton
 // Available under the MIT license, see included LICENSE file for details
 
+#include "Common.hpp"
 #include "Search.hpp"
 #include "Board.hpp"
 #include "IO.hpp"
 #include "Constants.hpp"
-
-#include <iostream>
-#include <algorithm>
-#include <cassert>
-#include <cstddef>
-#include <vector>
-#include <stack>
-#include <mutex>
-#include <atomic>
-#include <chrono>
 
 Search::Search(Board &board) :
     m_Cond_SearchPending(false),

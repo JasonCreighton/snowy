@@ -3,17 +3,11 @@
 
 #pragma once
 
+#include "Common.hpp"
 #include "Board.hpp"
 #include "TranspositionTable.hpp"
 #include "MovePicker.hpp"
 #include "Constants.hpp"
-
-#include <vector>
-#include <mutex>
-#include <atomic>
-#include <chrono>
-#include <thread>
-#include <condition_variable>
 
 class Search {
 public:

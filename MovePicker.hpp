@@ -3,9 +3,8 @@
 
 #pragma once
 
+#include "Common.hpp"
 #include "Board.hpp"
-
-#include <vector>
 
 template<int GenFlags = Board::GEN_ALL>
 class MovePicker {
