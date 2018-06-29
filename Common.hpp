@@ -1,6 +1,11 @@
 // Meant to be used as a precompiled header
 
-#pragma once
+// Use #ifndef guards instead of my usual #pragma once because of how this file
+// ends up being copied into the build directory for precompiled header purposes,
+// so there are two Common.hpp files running around, and hence #pragma once
+// doesn't quite do what we want.
+#ifndef _SNOWY_COMMON_HPP
+#define _SNOWY_COMMON_HPP
 
 #include <iostream>
 #include <vector>
@@ -25,3 +30,5 @@
 #include <cmath>
 #include <cstring>
 #include <cstddef>
+
+#endif
