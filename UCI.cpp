@@ -9,10 +9,8 @@
 #include "Constants.hpp"
 #include "Util.hpp"
 
-// In case someone wants to use a different build environment
-#ifndef GIT_VERSION
-#define GIT_VERSION "(version unknown)"
-#endif
+// This is changed to a version number (eg, X.Y) for release commits
+#define SNOWY_VERSION "dev_build"
 
 namespace {
     void ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl, int& out_softMoveTime_ms, int& out_hardMoveTime_ms) {
@@ -46,7 +44,7 @@ UCI::UCI() : m_Search(m_Board) {
 void UCI::Run() {
     std::string line;
 
-    IO::PutLine("Snowy " GIT_VERSION " by Jason Creighton (built on " __DATE__ " " __TIME__ ")");
+    IO::PutLine("Snowy " SNOWY_VERSION " by Jason Creighton (built on " __DATE__ " " __TIME__ ")");
 
     while(IO::GetLine(line)) {
         if(!DoCommand(line)) {
@@ -62,7 +60,7 @@ bool UCI::DoCommand(const std::string& commandLine) {
     lineStream >> command;
 
     if(command == "uci") {
-        IO::PutLine("id name Snowy " GIT_VERSION);
+        IO::PutLine("id name Snowy " SNOWY_VERSION);
         IO::PutLine("id author Jason Creighton");
         IO::PutLine("option name Hash type spin default " + std::to_string(DEFAULT_HASH_TABLE_SIZE_MB) +
                     " min " + std::to_string(MIN_HASH_TABLE_SIZE_MB) +

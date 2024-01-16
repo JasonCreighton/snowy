@@ -1,8 +1,11 @@
 # Ignore build directory
-build/*
+out/*
 
 # Ignore Visual Studio Code settings
 .vscode/*
+
+# Ignore Visual Studio settings
+.vs/*
 
 # Compilation database, used by clang-tidy and the clang static analyzer
 compile_commands.json
