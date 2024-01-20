@@ -61,5 +61,6 @@ private:
 
     std::uint8_t m_Now;
     Zobrist::hash_t m_HashMask;
-    std::vector<Bucket> m_Table;
+    std::vector<unsigned char> m_TableBackingBuffer;
+    Bucket* m_Table;
 };

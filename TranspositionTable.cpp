@@ -14,13 +14,31 @@ TranspositionTable::TranspositionTable(int bytesLog2) :
 
 void TranspositionTable::Resize(int bytesLog2) {
     std::size_t numBytes = static_cast<std::size_t>(1) << bytesLog2;
-    std::size_t numBuckets = numBytes / sizeof(Bucket);
+    std::size_t numBuckets = numBytes / sizeof(Bucket);    
+    assert((numBytes % sizeof(Bucket)) == 0); // sizeof(Bucket) ought to be a power of two
     assert(numBuckets > 0);
-    
+
+    // numBuckets is a power of two, m_HashMask is 2^N - 1 with a bunch of
+    // consecutive 1 bits.
     m_HashMask = numBuckets - 1;
 
-    m_Table.resize(numBuckets);
-    m_Table.shrink_to_fit();
+    // Allocate some extra bytes in the backing buffer so that we can align
+    // our m_Table pointer to the bucket size. (A Bucket is intended fit in a
+    // cache line, so alignment ensures we can load a bucket with only a single
+    // cache miss.)
+    m_TableBackingBuffer.resize(numBytes + sizeof(Bucket));
+    m_TableBackingBuffer.shrink_to_fit();
+
+    uintptr_t startOfBufPtr = reinterpret_cast<uintptr_t>(&m_TableBackingBuffer[0]);
+    uintptr_t alignedPtr = (startOfBufPtr + (sizeof(Bucket) - 1)) & ~(sizeof(Bucket) - 1);
+
+    // Pointer should be aligned
+    assert((alignedPtr % sizeof(Bucket)) == 0);
+
+    // We should not have moved very far from the start of the buffer
+    assert((alignedPtr - startOfBufPtr) < sizeof(Bucket));
+    
+    m_Table = reinterpret_cast<Bucket*>(alignedPtr);
 }
 
 void TranspositionTable::Insert(Zobrist::hash_t hash, int score, ScoreBound bound, int depth, int ply, const Board::Move *move) {
