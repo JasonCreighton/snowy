@@ -36,3 +36,10 @@ target_link_libraries(snowy ${CMAKE_THREAD_LIBS_INIT})
 if(COMMAND target_precompile_headers)
     target_precompile_headers(snowy PRIVATE Common.hpp)
 endif()
+
+# Tests
+enable_testing()
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../chess-data/test/perftsuite.epd" PERFTSUITE_EPD)
+
+add_test(NAME UnitTests COMMAND snowy -t)
+add_test(NAME PerftSuite COMMAND snowy -p "${PERFTSUITE_EPD}")

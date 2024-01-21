@@ -11,9 +11,15 @@ bool RunPerftTestSuite(const char *testSuiteFilename) {
     Search search(board);
     std::ifstream testSuite;
 
-    std::cout << "Running Perft tests";
-
     testSuite.open(testSuiteFilename);
+
+    if (testSuite.fail()) {
+        // File does not exist, or some other error
+        std::cout << "Failed opening file " << testSuiteFilename << std::endl;
+        return false;
+    }
+
+    std::cout << "Running Perft tests";
 
     std::string line;
     while(std::getline(testSuite, line)) {

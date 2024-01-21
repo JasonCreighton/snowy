@@ -13,15 +13,17 @@ namespace {
         std::cerr << programName << " [-t perftsuite...] [-c uci_command...] [-l log_file...]" << std::endl;
     }
 
-    void RunTests() {
+    bool RunTests() {
         #ifdef NDEBUG
-            std::cerr << "WARNING! Assertions disabled! Test is a no-op." << std::endl;
+            std::cerr << "ERROR! Assertions disabled! Test is a no-op." << std::endl;
+            return false;
         #endif
 
         Board::Test();
         Search::Test();
 
         std::cout << "Tests complete." << std::endl;
+        return true;
     }
 }
 
@@ -61,7 +63,7 @@ int main(int argc, char **argv) {
                     break;
                 }
             } else if (strcmp(argv[i], "-t") == 0) {
-                RunTests();
+                success = success && RunTests();
                 batchMode = true;
                 i += 1;
             } else if (strcmp(argv[i], "-l") == 0) {
