@@ -260,125 +260,125 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
 
     if(depth == 0) {
         return Quiesce(alpha, beta, plyIndex);
-    } else {
-        Zobrist::hash_t thisNodeHash = m_Board.Hash();
-        Board::Move hashMove;
-        int probeResult = 0;
-
-        // Don't probe at the root, we want to avoid a situation where we only
-        // have hash hits as we increase depth, and then when we finally hit a
-        // depth that triggers some work, we don't finish before time is up.
-        // If that happens, it could be the case that we are walking right into
-        // a repetition draw and don't even know it.
-        if(plyIndex > 0) {
-            int hashScore;
-
-            probeResult = m_TT.Probe(thisNodeHash, alpha, beta, depth, plyIndex, hashScore, hashMove);
-
-            if(probeResult & TranspositionTable::PROBE_FOUND_SCORE) {
-                ++m_HashTableScoreHits;
-                // Great, we found a score
-                return hashScore;
-            }
-        }
-
-        MovePicker<Board::GEN_ALL> movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
-
-        int numLegalMoves = 0;
-        bool alphaWasImproved = false;
-        
-        if(probeResult & TranspositionTable::PROBE_FOUND_MOVE) {
-            ++m_HashTableMoveHits;
-            movePicker.SetHashMove(hashMove);
-        }
-    
-        Board::Move move;
-        int bestMoveIndex = -1;
-        while(movePicker.Next(move)) {
-            if(m_Board.Make(move)) {
-                ++m_NumMainNodes;
-
-                // Alpha and beta switch roles for the other player
-                int moveScore = -MainSearch(-beta, -alpha, plyIndex + 1, depth - 1);
-
-                m_Board.Unmake();
-
-                if(m_StopSearchRequested) {
-                    // abort search
-                    return 0;
-                }
-
-                if(moveScore >= beta) {
-                    // We have found a continuation that is "too good", and we
-                    // already know the opponent will not allow us to get to this
-                    // position in the first place, so we can quit searching.
-
-                    // This is a cut-node, so we insert a lower bound into the hash table
-                    m_TT.Insert(thisNodeHash, moveScore, TranspositionTable::ScoreBound::LOWER_BOUND, depth, plyIndex, &move);
-
-                    m_BetaCutoffHistogram[numLegalMoves] += 1;
-
-                    if(!move.IsCapture && move.Promotion == Board::Piece::NONE) {
-                        // Was a quiet move, save it as a killer
-                        UpdateKillers(plyIndex, move);
-                    }
-
-                    return beta;
-                }
-
-                if(moveScore > alpha) {
-                    alpha = moveScore;
-                    alphaWasImproved = true;
-                    bestMove = move;
-                    bestMoveIndex = numLegalMoves;
-                }
-                
-                ++numLegalMoves;
-            }
-        }
-
-        // We searched all the moves, so we either have a PV-node or an All-Node
-        int score;
-        TranspositionTable::ScoreBound bound;
-        Board::Move* ttMove = nullptr;
-
-        if(numLegalMoves == 0) {
-            // There was nothing more to search, so this must be an exact score
-            bound = TranspositionTable::ScoreBound::EXACT;
-
-            if(m_Board.InCheck()) {
-                // Checkmate is bad, but it's better if it's farther off
-                score = -SCORE_MATE + plyIndex;
-            } else {
-                score = SCORE_DRAW;
-            }
-        } else if(m_Board.IsEligibleForFiftyMoveDraw()) {
-            // Draw by 50 move rule
-            // FIXME: Detecting this here means we only find draws at PV nodes,
-            // but I don't have a clean way to detect checkmate at the moment
-            // without running through the move list.
-            bound = TranspositionTable::ScoreBound::EXACT;
-            score = SCORE_DRAW;
-        } else {
-            // If alpha was improved, it's a PV-node and hence exact.
-            // Otherwise, it's an all-node and the score is an upper bound.
-            if(alphaWasImproved) {
-                bound = TranspositionTable::ScoreBound::EXACT;
-                ttMove = &bestMove;
-            } else {
-                bound = TranspositionTable::ScoreBound::UPPER_BOUND;
-            }
-            score = alpha;     
-        }
-
-        m_TT.Insert(thisNodeHash, score, bound, depth, plyIndex, ttMove);
-
-        if(alphaWasImproved) {
-            m_BestMoveHistogram[bestMoveIndex] += 1;
-        }
-
-        return score;
     }
+
+    Zobrist::hash_t thisNodeHash = m_Board.Hash();
+    Board::Move hashMove;
+    int probeResult = 0;
+
+    // Don't probe at the root, we want to avoid a situation where we only
+    // have hash hits as we increase depth, and then when we finally hit a
+    // depth that triggers some work, we don't finish before time is up.
+    // If that happens, it could be the case that we are walking right into
+    // a repetition draw and don't even know it.
+    if(plyIndex > 0) {
+        int hashScore;
+
+        probeResult = m_TT.Probe(thisNodeHash, alpha, beta, depth, plyIndex, hashScore, hashMove);
+
+        if(probeResult & TranspositionTable::PROBE_FOUND_SCORE) {
+            ++m_HashTableScoreHits;
+            // Great, we found a score
+            return hashScore;
+        }
+    }
+
+    MovePicker<Board::GEN_ALL> movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
+
+    int numLegalMoves = 0;
+    bool alphaWasImproved = false;
+        
+    if(probeResult & TranspositionTable::PROBE_FOUND_MOVE) {
+        ++m_HashTableMoveHits;
+        movePicker.SetHashMove(hashMove);
+    }
+    
+    Board::Move move;
+    int bestMoveIndex = -1;
+    while(movePicker.Next(move)) {
+        if(m_Board.Make(move)) {
+            ++m_NumMainNodes;
+
+            // Alpha and beta switch roles for the other player
+            int moveScore = -MainSearch(-beta, -alpha, plyIndex + 1, depth - 1);
+
+            m_Board.Unmake();
+
+            if(m_StopSearchRequested) {
+                // abort search
+                return 0;
+            }
+
+            if(moveScore >= beta) {
+                // We have found a continuation that is "too good", and we
+                // already know the opponent will not allow us to get to this
+                // position in the first place, so we can quit searching.
+
+                // This is a cut-node, so we insert a lower bound into the hash table
+                m_TT.Insert(thisNodeHash, moveScore, TranspositionTable::ScoreBound::LOWER_BOUND, depth, plyIndex, &move);
+
+                m_BetaCutoffHistogram[numLegalMoves] += 1;
+
+                if(!move.IsCapture && move.Promotion == Board::Piece::NONE) {
+                    // Was a quiet move, save it as a killer
+                    UpdateKillers(plyIndex, move);
+                }
+
+                return beta;
+            }
+
+            if(moveScore > alpha) {
+                alpha = moveScore;
+                alphaWasImproved = true;
+                bestMove = move;
+                bestMoveIndex = numLegalMoves;
+            }
+                
+            ++numLegalMoves;
+        }
+    }
+
+    // We searched all the moves, so we either have a PV-node or an All-Node
+    int score;
+    TranspositionTable::ScoreBound bound;
+    Board::Move* ttMove = nullptr;
+
+    if(numLegalMoves == 0) {
+        // There was nothing more to search, so this must be an exact score
+        bound = TranspositionTable::ScoreBound::EXACT;
+
+        if(m_Board.InCheck()) {
+            // Checkmate is bad, but it's better if it's farther off
+            score = -SCORE_MATE + plyIndex;
+        } else {
+            score = SCORE_DRAW;
+        }
+    } else if(m_Board.IsEligibleForFiftyMoveDraw()) {
+        // Draw by 50 move rule
+        // FIXME: Detecting this here means we only find draws at PV nodes,
+        // but I don't have a clean way to detect checkmate at the moment
+        // without running through the move list.
+        bound = TranspositionTable::ScoreBound::EXACT;
+        score = SCORE_DRAW;
+    } else {
+        // If alpha was improved, it's a PV-node and hence exact.
+        // Otherwise, it's an all-node and the score is an upper bound.
+        if(alphaWasImproved) {
+            bound = TranspositionTable::ScoreBound::EXACT;
+            ttMove = &bestMove;
+        } else {
+            bound = TranspositionTable::ScoreBound::UPPER_BOUND;
+        }
+        score = alpha;     
+    }
+
+    m_TT.Insert(thisNodeHash, score, bound, depth, plyIndex, ttMove);
+
+    if(alphaWasImproved) {
+        m_BestMoveHistogram[bestMoveIndex] += 1;
+    }
+
+    return score;
 }
 
 void Search::UpdateKillers(int plyIndex, Board::Move move) {
