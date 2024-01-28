@@ -259,7 +259,20 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
     }
 
     if(depth == 0) {
-        return Quiesce(alpha, beta, plyIndex);
+        if (m_Board.InCheck()) {
+            // Extend search by 1 ply to get out of check before going to
+            // qsearch. This shouldn't cause termination problems as it is
+            // difficult to give check while simultaneously escaping check.
+            //
+            // TODO: I think it would be better to just evaluate all moves
+            // when in check inside Quiesce(), but that would be kind of
+            // awkward at the moment due to MovePicker being specialized at
+            // compile-time on GenFlags. Maybe that should be refactored, but
+            // we just do this for now.
+            depth = 1;
+        } else {
+            return Quiesce(alpha, beta, plyIndex);
+        }
     }
 
     Zobrist::hash_t thisNodeHash = m_Board.Hash();
