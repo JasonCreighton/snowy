@@ -128,6 +128,10 @@ public:
     static const char *FEN_START_POSITION;
 
 private:
+    static void TestZobristHashing();
+    static void TestEnPassantSquare();
+    static void TestCastlingRights();
+
     struct UndoMove {
         Zobrist::hash_t PieceHash;
         int PliesSincePawnMoveOrCapture;

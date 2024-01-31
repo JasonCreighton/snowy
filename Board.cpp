@@ -1107,64 +1107,66 @@ std::string Board::Move::ToString() const {
 }
 
 void Board::Test() {
-#ifndef NDEBUG
-    // Test Zobrist hashing
-    {
-        Board board;
-        board.ParseFen("7k/8/8/8/8/8/7P/3QKBNR w K - 0 1");
-
-        Zobrist::hash_t originalHash =
-            Zobrist::Piece[0][Piece::QUEEN][3] ^
-            Zobrist::Piece[0][Piece::KING][4] ^
-            Zobrist::Piece[0][Piece::BISHOP][5] ^
-            Zobrist::Piece[0][Piece::KNIGHT][6] ^
-            Zobrist::Piece[0][Piece::ROOK][7] ^
-            Zobrist::Piece[0][Piece::PAWN][15] ^
-            Zobrist::Piece[1][Piece::KING][63] ^
-            Zobrist::SideToMove[Color::WHITE] ^
-            Zobrist::CastlingRights[CR_WHITE_KING_SIDE];
-        
-        assert(board.Hash() == originalHash);
-
-        Move move = ParseMove("h2h4");
-        Zobrist::hash_t hashAfterMove = originalHash ^
-            Zobrist::Piece[0][Piece::PAWN][15] ^ // remove pawn from old square
-            Zobrist::Piece[0][Piece::PAWN][31] ^ // place pawn on new square
-            Zobrist::EnPassantFile[7] ^ // En passant is available on file 7
-            Zobrist::SideToMove[Color::WHITE] ^ // unset white to move
-            Zobrist::SideToMove[Color::BLACK]; // set black to move
-        
-        board.Make(move);
-
-        assert(board.Hash() == hashAfterMove);
-
-        board.Unmake();
-
-        // Hash should have reverted back to the pre-move value
-        assert(board.Hash() == originalHash);
-    }
-
-    // En passant square
-    {
-        Board board;
-        board.ParseFen("r1bqnrk1/pp2npbp/3p2p1/2pPp3/2P1P3/2N1B3/PP2BPPP/R2QNRK1 w - c6");
-        assert(board.m_EnPassantTargetSquare == 0x52);
-    }
-
-    // Castling rights
-    {
-        Board board;
-        board.ParseFen("r2qk2r/1b3ppp/2pbpn2/8/1p1P4/3BPN2/1P3PPP/R1BQ1RK1 w kq - 0 1");
-        assert(board.m_CastlingRights == (CR_BLACK_KING_SIDE | CR_BLACK_QUEEN_SIDE));
-
-        board.Make(Board::ParseMove("a1a8"));
-
-        // Should remove castling rights even if rook captures rook
-        assert(board.m_CastlingRights == CR_BLACK_KING_SIDE);
-    }
-#endif
+    TestZobristHashing();
+    TestEnPassantSquare();
+    TestCastlingRights();
 }
 
+void Board::TestZobristHashing() {
+    // Test Zobrist hashing
+    Board board;
+    board.ParseFen("7k/8/8/8/8/8/7P/3QKBNR w K - 0 1");
+
+    Zobrist::hash_t originalHash =
+        Zobrist::Piece[0][Piece::QUEEN][3] ^
+        Zobrist::Piece[0][Piece::KING][4] ^
+        Zobrist::Piece[0][Piece::BISHOP][5] ^
+        Zobrist::Piece[0][Piece::KNIGHT][6] ^
+        Zobrist::Piece[0][Piece::ROOK][7] ^
+        Zobrist::Piece[0][Piece::PAWN][15] ^
+        Zobrist::Piece[1][Piece::KING][63] ^
+        Zobrist::SideToMove[Color::WHITE] ^
+        Zobrist::CastlingRights[CR_WHITE_KING_SIDE];
+
+    assert(board.Hash() == originalHash);
+
+    Move move = ParseMove("h2h4");
+    Zobrist::hash_t hashAfterMove = originalHash ^
+        Zobrist::Piece[0][Piece::PAWN][15] ^ // remove pawn from old square
+        Zobrist::Piece[0][Piece::PAWN][31] ^ // place pawn on new square
+        Zobrist::EnPassantFile[7] ^ // En passant is available on file 7
+        Zobrist::SideToMove[Color::WHITE] ^ // unset white to move
+        Zobrist::SideToMove[Color::BLACK]; // set black to move
+
+    board.Make(move);
+
+    assert(board.Hash() == hashAfterMove);
+
+    board.Unmake();
+
+    // Hash should have reverted back to the pre-move value
+    assert(board.Hash() == originalHash);
+}
+
+void Board::TestEnPassantSquare() {
+    // En passant square
+    Board board;
+    board.ParseFen("r1bqnrk1/pp2npbp/3p2p1/2pPp3/2P1P3/2N1B3/PP2BPPP/R2QNRK1 w - c6");
+    assert(board.m_EnPassantTargetSquare == 0x52);
+}
+
+void Board::TestCastlingRights() {
+    // Castling rights
+    Board board;
+    board.ParseFen("r2qk2r/1b3ppp/2pbpn2/8/1p1P4/3BPN2/1P3PPP/R1BQ1RK1 w kq - 0 1");
+    assert(board.m_CastlingRights == (CR_BLACK_KING_SIDE | CR_BLACK_QUEEN_SIDE));
+
+    board.Make(Board::ParseMove("a1a8"));
+
+    // Should remove castling rights even if rook captures rook
+    assert(board.m_CastlingRights == CR_BLACK_KING_SIDE);
+}
+    
 // Template instantiations
 template void Board::FindPseudoLegalMoves<Board::GEN_ALL>(std::vector<Board::Move> &out_MoveList);
 template void Board::FindPseudoLegalMoves<Board::GEN_CAPTURES | Board::GEN_PROMOTIONS>(std::vector<Board::Move> &out_MoveList);

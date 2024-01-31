@@ -32,6 +32,8 @@ public:
     void SetHashTableSize(int bytesLog2);
 
 private:
+    static void TestCheckmateScore();
+
     struct Ply {
         std::vector<Board::Move> MoveList;
         Board::Move KillerMoves[NUM_KILLER_MOVE_SLOTS];

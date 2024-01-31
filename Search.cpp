@@ -590,32 +590,32 @@ void Search::SetHashTableSize(int bytesLog2) {
 }
 
 void Search::Test() {
-#ifndef NDEBUG
+    TestCheckmateScore();
+}
+
+void Search::TestCheckmateScore() {
     // Test that even with a hash table, the "mate in N" scores are still correct
-    {
-        Board board;
-        Search search(board);
+    Board board;
+    Search search(board);
 
-        // Black to move and is helpless. White can mate immediately when it is their turn.
-        board.ParseFen("k7/7R/6R1/8/8/8/8/7K b - - 0 1");
+    // Black to move and is helpless. White can mate immediately when it is their turn.
+    board.ParseFen("k7/7R/6R1/8/8/8/8/7K b - - 0 1");
 
-        int checkmatedInTwoScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 4);
+    int checkmatedInTwoScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 4);
 
-        assert(checkmatedInTwoScore == -(SCORE_MATE - 2));
+    assert(checkmatedInTwoScore == -(SCORE_MATE - 2));
 
-        // Make meaningless move for black king
-        board.Make(Board::ParseMove("a8b8"));
+    // Make meaningless move for black king
+    board.Make(Board::ParseMove("a8b8"));
 
-        // Use a smaller depth, so we're sure to be able to use the hash table hit
-        int deliverMateInOneScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 3);
+    // Use a smaller depth, so we're sure to be able to use the hash table hit
+    int deliverMateInOneScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 3);
 
-        assert(deliverMateInOneScore == (SCORE_MATE - 1));
+    assert(deliverMateInOneScore == (SCORE_MATE - 1));
 
-        // Deliver mate
-        board.Make(Board::ParseMove("g6g8"));
+    // Deliver mate
+    board.Make(Board::ParseMove("g6g8"));
 
-        int checkmatedScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 2);
-        assert(checkmatedScore == -SCORE_MATE);
-    }
-#endif
+    int checkmatedScore = search.MainSearch(-SCORE_INF, SCORE_INF, 0, 2);
+    assert(checkmatedScore == -SCORE_MATE);
 }
