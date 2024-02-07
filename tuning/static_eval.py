@@ -1,5 +1,9 @@
 #! /usr/bin/env python3
 
+# Need to install dependencies:
+#
+# pip install chess
+
 import chess
 import chess.pgn
 import numpy as np
@@ -14,7 +18,7 @@ import sys
 # licensing. See https://bitbucket.org/zurichess/tuner if you are interested in
 # the data set.
 EPD_FILE = "../chess-data/zurichess/quiet-labeled.epd"
-SNOWY_BIN = "build/release"
+SNOWY_BIN = "out/build/x64-Release/snowy.exe"
 
 PieceDesc = collections.namedtuple("PieceDesc", ("chess_piece", "feature", "rank_features", "file_features"))
 
@@ -102,7 +106,7 @@ def build_eqsystem(num_positions, num_ties, snowy_features, epd_filename):
 
 def snowy_extract_features_from_positions(fen_strings):
     input_bytes = b"\n".join(b"position fen %s\nfeatures" % fen.encode() for fen in fen_strings)
-    output_bytes = subprocess.run(SNOWY_BIN, input=input_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
+    output_bytes = subprocess.run([SNOWY_BIN, "--quiet"], input=input_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
     features = [[int(x) for x in line.strip().split(" ")] for line in output_bytes.decode().strip().split("\n")]
 
     return features
@@ -124,7 +128,7 @@ pd_king = generic_piece_desc(chess.KING)
 piece_descs = [pd_pawn, pd_knight, pd_bishop, pd_rook, pd_queen, pd_king]
 
 # Query how many extra board features there are
-num_extra_features = int(subprocess.run(SNOWY_BIN, input=b"num_features\n", stdout=subprocess.PIPE).stdout)
+num_extra_features = int(subprocess.run([SNOWY_BIN, "--quiet"], input=b"num_features\n", stdout=subprocess.PIPE).stdout)
 extra_feature_indexes = [assign_feature_index() for _ in range(num_extra_features)]
 
 # We have to take a scan through the file first in order to know how big we

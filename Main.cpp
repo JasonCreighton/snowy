@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
     Zobrist::Init();
 
     UCI uci;
+    bool quiet = false;
     bool batchMode = false;
     bool success = true;
 
@@ -73,6 +74,10 @@ int main(int argc, char **argv) {
                 } else {
                     badArgument = true;
                 }
+            } else if (strcmp(argv[i], "--quiet") == 0) {
+                // Skip the welcome message for when static_eval.py runs us
+                quiet = true;
+                i += 1;
             } else {
                 badArgument = true;
                 break;
@@ -86,6 +91,10 @@ int main(int argc, char **argv) {
     }
 
     if(!batchMode) {
+        if (!quiet) {
+            IO::PutLine("Snowy " SNOWY_VERSION " by Jason Creighton (built on " __DATE__ " " __TIME__ ")");
+        }
+
         uci.Run();
         uci.WaitForSearch();
     }

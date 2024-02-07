@@ -31,4 +31,7 @@
 #include <cstring>
 #include <cstddef>
 
+// This is changed to a version number (eg, X.Y) for release commits
+#define SNOWY_VERSION "dev_build"
+
 #endif

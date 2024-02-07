@@ -9,9 +9,6 @@
 #include "Constants.hpp"
 #include "Util.hpp"
 
-// This is changed to a version number (eg, X.Y) for release commits
-#define SNOWY_VERSION "dev_build"
-
 namespace {
     void ChooseMoveTime(int timeLeft_ms, int increment_ms, int movesUntilNextTimeControl, int& out_softMoveTime_ms, int& out_hardMoveTime_ms) {
         const int TIME_MANAGEMENT_MARGIN_MS = 100;
@@ -43,8 +40,6 @@ UCI::UCI() : m_Search(m_Board) {
 
 void UCI::Run() {
     std::string line;
-
-    IO::PutLine("Snowy " SNOWY_VERSION " by Jason Creighton (built on " __DATE__ " " __TIME__ ")");
 
     while(IO::GetLine(line)) {
         if(!DoCommand(line)) {
