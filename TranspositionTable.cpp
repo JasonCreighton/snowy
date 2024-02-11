@@ -12,6 +12,19 @@ TranspositionTable::TranspositionTable(int bytesLog2) :
     Resize(bytesLog2);
 }
 
+void TranspositionTable::Clear() {
+    for (size_t bucketIdx = 0; bucketIdx <= m_HashMask; ++bucketIdx) {
+        for (auto& entry : m_Table[bucketIdx].entries) {
+            // We don't have any sort of "entry valid" flag at the moment, we
+            // just assume that no position will hash to zero.
+            entry.Key = 0;
+            entry.Value.Timestamp = 0;
+        }
+    }
+
+    m_Now = 0;
+}
+
 void TranspositionTable::Resize(int bytesLog2) {
     std::size_t numBytes = static_cast<std::size_t>(1) << bytesLog2;
     std::size_t numBuckets = numBytes / sizeof(Bucket);    

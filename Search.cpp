@@ -81,6 +81,12 @@ void Search::WorkerThreadMain() {
     }
 }
 
+void Search::NewGame() {
+    std::lock_guard<std::mutex> guard(m_Mutex);
+
+    m_TT.Clear();
+}
+
 void Search::StartSearch(const Parameters& params) {
     std::lock_guard<std::mutex> guard(m_Mutex);
 

@@ -83,6 +83,8 @@ bool UCI::DoCommand(const std::string& commandLine) {
         } else {
             IO::PutInfo(R"(Error parsing setoption: Expected "name")");
         }
+    } else if(command == "ucinewgame") {
+        m_Search.NewGame();
     } else if(command == "position") {
         m_Search.WaitForSearch();
 

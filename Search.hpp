@@ -24,6 +24,7 @@ public:
     explicit Search(Board &board);
     ~Search();
 
+    void NewGame();
     void StartSearch(const Parameters& params);
     void StopSearch();
     void WaitForSearch();

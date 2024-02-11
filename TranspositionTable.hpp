@@ -12,6 +12,7 @@ public:
     enum class ScoreBound : std::uint8_t { EXACT, UPPER_BOUND, LOWER_BOUND };
 
     explicit TranspositionTable(int bytesLog2);
+    void Clear();
     void Resize(int bytesLog2);
     void Insert(Zobrist::hash_t hash, int score, ScoreBound bound, int depth, int ply, const Board::Move* move);
 
