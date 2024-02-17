@@ -9,6 +9,17 @@ set(CMAKE_CXX_STANDARD 14)
 # Enable LTO
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
+# Add RelWithAssertions configuration type
+list(APPEND CMAKE_CONFIGURATION_TYPES RelWithAssertions)
+
+# The intent is to make RelWithAssertions similar to RelWithDebInfo.
+# Hopefully I've extended all the right magic variables, I got the list from here:
+# https://gitlab.kitware.com/cmake/community/-/wikis/FAQ#how-can-i-extend-the-build-modes-with-a-custom-made-one-
+set(CMAKE_C_FLAGS_RELWITHASSERTIONS "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DREL_WITH_ASSERTIONS=1")
+set(CMAKE_CXX_FLAGS_RELWITHASSERTIONS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DREL_WITH_ASSERTIONS=1")
+set(CMAKE_EXE_LINKER_FLAGS_RELWITHASSERTIONS "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
+set(CMAKE_SHARED_LINKER_FLAGS_RELWITHASSERTIONS "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
+
 add_executable(snowy
     # Headers
     Common.hpp

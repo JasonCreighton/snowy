@@ -7,6 +7,11 @@
 #ifndef _SNOWY_COMMON_HPP
 #define _SNOWY_COMMON_HPP
 
+// Allow enabling asserts in release builds
+#ifdef REL_WITH_ASSERTIONS
+#undef NDEBUG
+#endif
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -32,6 +37,13 @@
 #include <cstddef>
 
 // This is changed to a version number (eg, X.Y) for release commits
-#define SNOWY_VERSION "dev_build"
+#define SNOWY_BASE_VERSION "dev_build"
+
+// Append -assertions to version string if assertions are enabled
+#ifndef NDEBUG
+#define SNOWY_VERSION SNOWY_BASE_VERSION "-assertions"
+#else
+#define SNOWY_VERSION SNOWY_BASE_VERSION
+#endif
 
 #endif
