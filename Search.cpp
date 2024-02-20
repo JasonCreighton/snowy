@@ -16,10 +16,6 @@ Search::Search(Board &board) :
     m_TimeLimitCounter(0),
     m_BetaCutoffHistogram(250),
     m_BestMoveHistogram(250),
-    m_HashTableScoreHits(0),
-    m_HashTableMoveHits(0),
-    m_NumMainNodes(0),
-    m_NumQuiesceNodes(0),
     m_Plies(MAX_PLY),
     m_TT(10) // it's expected that the hash table will get resized right away
 {
@@ -135,11 +131,9 @@ void Search::RunSearch() {
         int score;
         int minimumSafeSearchDepth = m_SearchParameters.Depth;
         
-        m_NumMainNodes = 0;
-        m_NumQuiesceNodes = 0;
-        m_NumStaticEvaluations = 0;
-        m_HashTableScoreHits = 0;
-        m_HashTableMoveHits = 0;
+        m_Board.NumLegalMovesMade = 0;
+        memset(&m_MainCounters, 0, sizeof(m_MainCounters));
+        memset(&m_QSearchCounters, 0, sizeof(m_QSearchCounters));
 
         // Time limit is disabled for depth=1, since need to complete at least
         // the first depth in order to produce a "bestmove".
@@ -185,7 +179,7 @@ void Search::RunSearch() {
 
         infoStr += " time " + std::to_string(iteration_us / 1000);
 
-        int numNodes = m_NumMainNodes + m_NumQuiesceNodes;                
+        std::int64_t numNodes = m_Board.NumLegalMovesMade;
         infoStr += " nodes " + std::to_string(numNodes);
 
         if(iteration_us > (100 * 1000)) {
@@ -202,12 +196,19 @@ void Search::RunSearch() {
         IO::PutLine(infoStr);
 
 #ifndef NDEBUG
+        // These early outs should be mutually exclusive and exhastively cover exits of MainSearch()
+        assert(m_MainCounters.Entry == (m_MainCounters.HashTableScoreHits + m_MainCounters.NumPVNodes + m_MainCounters.NumCutNodes + m_MainCounters.NumAllNodes));
+
         IO::PutInfo("STATS:"
-            " M=" + std::to_string(m_NumMainNodes) +
-            " Q=" + std::to_string(m_NumQuiesceNodes) +
-            " SE=" + std::to_string(m_NumStaticEvaluations) +
-            " TTS=" + std::to_string(m_HashTableScoreHits) +
-            " TTM=" + std::to_string(m_HashTableMoveHits)
+            " M=" + std::to_string(m_MainCounters.Entry) +
+            " TTS=" + std::to_string(m_MainCounters.HashTableScoreHits) +
+            " PV=" + std::to_string(m_MainCounters.NumPVNodes) +
+            " CUT=" + std::to_string(m_MainCounters.NumCutNodes) +
+            " ALL=" + std::to_string(m_MainCounters.NumAllNodes) +
+            " TTM=" + std::to_string(m_MainCounters.HashTableMoveHits) +
+            " Q=" + std::to_string(m_QSearchCounters.Entry) +
+            " QSPCUT=" + std::to_string(m_QSearchCounters.StandPatBetaCutoff) +
+            " QCUT=" + std::to_string(m_QSearchCounters.BetaCutoff)
         );
 #endif
 
@@ -281,6 +282,9 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
         }
     }
 
+    // For now we don't consider the early-outs above this line
+    ++m_MainCounters.Entry;
+
     Zobrist::hash_t thisNodeHash = m_Board.Hash();
     Board::Move hashMove;
     int probeResult = 0;
@@ -296,7 +300,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
         probeResult = m_TT.Probe(thisNodeHash, alpha, beta, depth, plyIndex, hashScore, hashMove);
 
         if(probeResult & TranspositionTable::PROBE_FOUND_SCORE) {
-            ++m_HashTableScoreHits;
+            ++m_MainCounters.HashTableScoreHits;
             // Great, we found a score
             return hashScore;
         }
@@ -308,7 +312,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
     bool alphaWasImproved = false;
         
     if(probeResult & TranspositionTable::PROBE_FOUND_MOVE) {
-        ++m_HashTableMoveHits;
+        ++m_MainCounters.HashTableMoveHits;
         movePicker.SetHashMove(hashMove);
     }
     
@@ -316,8 +320,6 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
     int bestMoveIndex = -1;
     while(movePicker.Next(move)) {
         if(m_Board.Make(move)) {
-            ++m_NumMainNodes;
-
             // Alpha and beta switch roles for the other player
             int moveScore = -MainSearch(-beta, -alpha, plyIndex + 1, depth - 1);
 
@@ -332,6 +334,7 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
                 // We have found a continuation that is "too good", and we
                 // already know the opponent will not allow us to get to this
                 // position in the first place, so we can quit searching.
+                ++m_MainCounters.NumCutNodes;
 
                 // This is a cut-node, so we insert a lower bound into the hash table
                 m_TT.Insert(thisNodeHash, moveScore, TranspositionTable::ScoreBound::LOWER_BOUND, depth, plyIndex, &move);
@@ -394,7 +397,10 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
     m_TT.Insert(thisNodeHash, score, bound, depth, plyIndex, ttMove);
 
     if(alphaWasImproved) {
+        ++m_MainCounters.NumPVNodes;
         m_BestMoveHistogram[bestMoveIndex] += 1;
+    } else {
+        ++m_MainCounters.NumAllNodes;
     }
 
     return score;
@@ -433,16 +439,18 @@ int Search::Quiesce() {
 int Search::Quiesce(int alpha, int beta, int plyIndex) {
     Ply &ply = m_Plies[plyIndex];
 
+    ++m_QSearchCounters.Entry;
+
     CheckTimeLimit();
 
     // We assume that we are not in zugzwang, and hence the static evaluation
     // can serve as a lower bound for our score, since we believe that at least
     // one of our moves should improve our situation.
     int standPatScore = m_Board.StaticEvaluation();
-    ++m_NumStaticEvaluations;
 
     if(standPatScore >= beta) {
         // Our position is too good, we would not have been allowed to get here
+        ++m_QSearchCounters.StandPatBetaCutoff;
         return beta;
     }
 
@@ -455,8 +463,6 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
     Board::Move move;
     while(movePicker.Next(move)) {
         if(m_Board.Make(move)) {
-            ++m_NumQuiesceNodes;
-
             int moveScore = -Quiesce(-beta, -alpha, plyIndex + 1);
             m_Board.Unmake();
 
@@ -465,6 +471,7 @@ int Search::Quiesce(int alpha, int beta, int plyIndex) {
             }
 
             if(moveScore >= beta) {
+                ++m_QSearchCounters.BetaCutoff;
                 return beta;
             }
 

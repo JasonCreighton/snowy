@@ -122,6 +122,7 @@ public:
     bool WhiteToMove() const;
     bool IsRepetition();
     bool IsEligibleForFiftyMoveDraw();
+    std::int64_t NumLegalMovesMade;
 
     static Move ParseMove(const std::string &moveStr);
 

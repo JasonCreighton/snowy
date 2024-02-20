@@ -73,11 +73,20 @@ private:
 
     std::vector<long> m_BetaCutoffHistogram;
     std::vector<long> m_BestMoveHistogram;
-    std::int64_t m_HashTableScoreHits;
-    std::int64_t m_HashTableMoveHits;
-    std::int64_t m_NumMainNodes;
-    std::int64_t m_NumQuiesceNodes;
-    std::int64_t m_NumStaticEvaluations;
+    struct {
+        int64_t Entry;
+        int64_t HashTableScoreHits;
+        int64_t HashTableMoveHits;
+        int64_t NumPVNodes;
+        int64_t NumCutNodes;
+        int64_t NumAllNodes;
+    } m_MainCounters;
+
+    struct {
+        int64_t Entry;
+        int64_t StandPatBetaCutoff;
+        int64_t BetaCutoff;
+    } m_QSearchCounters;
 
     std::vector<Ply> m_Plies;
     TranspositionTable m_TT;

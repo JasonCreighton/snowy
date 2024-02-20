@@ -30,7 +30,8 @@ namespace {
 const char *Board::FEN_START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 Board::Board() :
-    m_Features(NUM_FEATURES)
+    m_Features(NUM_FEATURES),
+    NumLegalMovesMade(0)
 {
     ParseFen(FEN_START_POSITION);
 }
@@ -742,6 +743,8 @@ bool Board::Make(Move m) {
     if(InCheck()) {
         legalMove = false;
         Unmake();
+    } else {
+        ++NumLegalMovesMade;
     }
 
     // XXX: Even if there was an undo above, that toggled the player to
