@@ -51,6 +51,9 @@ endif()
 # Tests
 enable_testing()
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../chess-data/test/perftsuite.epd" PERFTSUITE_EPD)
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../chess-data/scripts/chess_artist.py" CHESS_ARTIST_PY)
+file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data/regression.epd" REGRESSION_EPD)
 
 add_test(NAME UnitTests COMMAND snowy -t)
 add_test(NAME PerftSuite COMMAND snowy -p "${PERFTSUITE_EPD}")
+add_test(NAME RegressionEpd COMMAND python "${CHESS_ARTIST_PY}" --infile "${REGRESSION_EPD}" --outfile - --job test --eval search --movetime 5000 --enginefile $<TARGET_FILE:snowy>)
