@@ -21,6 +21,9 @@ bool RunPerftTestSuite(const char *testSuiteFilename) {
 
     std::cout << "Running Perft tests";
 
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+    int64_t totalPerftCount = 0;
     std::string line;
     while(std::getline(testSuite, line)) {
         std::string fenString;
@@ -55,7 +58,8 @@ bool RunPerftTestSuite(const char *testSuiteFilename) {
             std::cout << '.' << std::flush;
 
             int depth = i + 1;
-            long calculatedPerftCount = search.Perft(depth);
+            int64_t calculatedPerftCount = search.Perft(depth);
+            totalPerftCount += calculatedPerftCount;
 
             if(calculatedPerftCount != perftCounts[i]) {
                 // Failure!
@@ -69,8 +73,12 @@ bool RunPerftTestSuite(const char *testSuiteFilename) {
             }
         }
     }
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - startTime);
+    auto elapsed_us = elapsed.count();
+    int64_t perftPerSecond = ((totalPerftCount * 1000000) / elapsed_us);
 
     std::cout << "done. All OK." << std::endl;
+    std::cout << "Total perft count: " << totalPerftCount << " perft/sec: " << perftPerSecond << std::endl;
 
     return true;
 }
