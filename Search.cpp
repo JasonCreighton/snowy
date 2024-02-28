@@ -287,23 +287,24 @@ int Search::MainSearch(int alpha, int beta, int plyIndex, int depth) {
 
     Zobrist::hash_t thisNodeHash = m_Board.Hash();
     Board::Move hashMove;
-    int probeResult = 0;
+    int hashScore;
 
-    // Don't probe at the root, we want to avoid a situation where we only
-    // have hash hits as we increase depth, and then when we finally hit a
-    // depth that triggers some work, we don't finish before time is up.
-    // If that happens, it could be the case that we are walking right into
-    // a repetition draw and don't even know it.
-    if(plyIndex > 0) {
-        int hashScore;
+    int probeResult = m_TT.Probe(thisNodeHash, alpha, beta, depth, plyIndex, hashScore, hashMove);
 
-        probeResult = m_TT.Probe(thisNodeHash, alpha, beta, depth, plyIndex, hashScore, hashMove);
-
-        if(probeResult & TranspositionTable::PROBE_FOUND_SCORE) {
-            ++m_MainCounters.HashTableScoreHits;
-            // Great, we found a score
-            return hashScore;
-        }
+    // Don't use the TT score at the root, we want to avoid a situation where
+    // we only have hash hits as we increase depth, and then when we finally
+    // hit a depth that triggers some work, we don't finish before time is
+    // up. If that happens, it could be the case that we are walking right
+    // into a repetition draw and don't even know it.
+    //
+    // TODO: Our time management has improved since this fix was put in place,
+    // maybe we don't need it anymore? Alternatively, maybe we should be
+    // doing this at all PV nodes? (To get more accuracy around
+    // path-dependent draws?)
+    if(plyIndex > 0 && (probeResult & TranspositionTable::PROBE_FOUND_SCORE)) {
+        ++m_MainCounters.HashTableScoreHits;
+        // Great, we found a score
+        return hashScore;
     }
 
     MovePicker<Board::GEN_ALL> movePicker(m_Board, ply.MoveList, &ply.KillerMoves[0]);
