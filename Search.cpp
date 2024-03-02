@@ -124,16 +124,16 @@ void Search::RunSearch() {
 
     std::fill(m_BetaCutoffHistogram.begin(), m_BetaCutoffHistogram.end(), 0);
     std::fill(m_BestMoveHistogram.begin(), m_BestMoveHistogram.end(), 0);
-    
+
+    m_Board.NumLegalMovesMade = 0;
+    memset(&m_MainCounters, 0, sizeof(m_MainCounters));
+    memset(&m_QSearchCounters, 0, sizeof(m_QSearchCounters));
+
     m_TT.AdvanceTime();
 
     for(int depth = 1; depth <= m_SearchParameters.Depth; ++depth) {
         int score;
         int minimumSafeSearchDepth = m_SearchParameters.Depth;
-        
-        m_Board.NumLegalMovesMade = 0;
-        memset(&m_MainCounters, 0, sizeof(m_MainCounters));
-        memset(&m_QSearchCounters, 0, sizeof(m_QSearchCounters));
 
         // Time limit is disabled for depth=1, since need to complete at least
         // the first depth in order to produce a "bestmove".
@@ -142,14 +142,12 @@ void Search::RunSearch() {
         // depth, causing us to crash because our "pv" array will be empty.
         m_EffectiveHardMoveTime_ms = (depth > 1) ? m_SearchParameters.HardMoveTime_ms : -1;
 
-        auto iterationStartTime = std::chrono::high_resolution_clock::now();
         if(!m_SearchParameters.BruteForce) {
             score = MainSearch(-SCORE_INF, SCORE_INF, 0, depth);
         } else {
             score = BruteForceSearch(0, depth);
         }
-        auto iterationDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - iterationStartTime);
-        auto iteration_us = iterationDuration.count();
+
 
         if(m_StopSearchRequested) {
             // Search was aborted or timed out, but we still need to print bestmove
@@ -177,13 +175,15 @@ void Search::RunSearch() {
             infoStr += " score cp " + std::to_string(score);
         }
 
-        infoStr += " time " + std::to_string(iteration_us / 1000);
+        auto searchDuration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - m_SearchStartTime);
+        auto searchTime_us = searchDuration.count();
+        infoStr += " time " + std::to_string(searchTime_us / 1000);
 
         std::int64_t numNodes = m_Board.NumLegalMovesMade;
         infoStr += " nodes " + std::to_string(numNodes);
 
-        if(iteration_us > (100 * 1000)) {
-            std::int64_t nodesPerSecond = ((static_cast<std::int64_t>(numNodes) * 1000000) / iteration_us);
+        if(searchTime_us > (100 * 1000)) {
+            std::int64_t nodesPerSecond = ((static_cast<std::int64_t>(numNodes) * 1000000) / searchTime_us);
             infoStr += " nps " + std::to_string(nodesPerSecond);
         }
 
