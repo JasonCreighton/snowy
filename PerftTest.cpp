@@ -57,7 +57,7 @@ bool RunPerftTestSuite(const char *testSuiteFilename) {
         for(std::size_t i = 0; i < perftCounts.size(); ++i) {
             std::cout << '.' << std::flush;
 
-            int depth = i + 1;
+            int depth = static_cast<int>(i) + 1;
             int64_t calculatedPerftCount = search.Perft(depth);
             totalPerftCount += calculatedPerftCount;
 

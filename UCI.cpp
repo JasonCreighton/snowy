@@ -190,7 +190,7 @@ bool UCI::DoCommand(const std::string& commandLine) {
 
         for(auto &m : moveList) {
             if(m_Board.Make(m)) {
-                long perftCount = m_Search.Perft(depth - 1);
+                int64_t perftCount = m_Search.Perft(depth - 1);
                 if(perftCount != 0) {
                     IO::PutLine(m.ToString() + ": " + std::to_string(perftCount));
                 }

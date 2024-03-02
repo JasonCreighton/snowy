@@ -62,6 +62,10 @@ private:
 
     std::uint8_t m_Now;
     Zobrist::hash_t m_HashMask;
+
+    // FIXME: m_Table is a pointer into m_TableBackingBuffer, which means that
+    // if this class is copied, the wrong things will happen. Should create a
+    // wrapper for an aligned array so we can follow the "rule of zero."
     std::vector<unsigned char> m_TableBackingBuffer;
     Bucket* m_Table;
 };
