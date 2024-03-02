@@ -1,5 +1,5 @@
-# Ignore build directory
-out/*
+# Ignore build directories
+out*/*
 
 # Ignore Visual Studio Code settings
 .vscode/*
