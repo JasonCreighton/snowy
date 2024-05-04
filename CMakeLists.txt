@@ -3,8 +3,9 @@ cmake_minimum_required(VERSION 3.13)
 
 project(snowy)
 
-# Use C++14
-set(CMAKE_CXX_STANDARD 14)
+# Post C++14 features used by snowy:
+# * std::vector that respects alignas (C++17)
+set(CMAKE_CXX_STANDARD 17)
 
 # Enable LTO
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
