@@ -51,11 +51,12 @@ private:
 
     static_assert(sizeof(Entry) == 16, "Hash table entry is expected to be 16 bytes");
 
-    struct Bucket {
+    struct alignas(sizeof(Entry) * ENTRIES_PER_BUCKET) Bucket {
         Entry entries[ENTRIES_PER_BUCKET];
     };
 
     static_assert(sizeof(Bucket) == (sizeof(Entry) * ENTRIES_PER_BUCKET), "Bucket should introduce no additional padding");
+    static_assert(sizeof(Bucket) == alignof(Bucket), "Bucket should have alignment equal to size (for cache locality)");
 
     bool Lookup(Zobrist::hash_t hash, Payload &out_payload);
     Entry& FindEntryToReplace(Zobrist::hash_t hash);

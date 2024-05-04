@@ -34,6 +34,9 @@ void TranspositionTable::Resize(int bytesLog2) {
 
     m_Table.resize(numBuckets);
     m_Table.shrink_to_fit();
+
+    // Check alignment (std::vector should guarantee this)
+    assert((reinterpret_cast<uintptr_t>(&m_Table[0]) & (alignof(Bucket) - 1)) == 0);
 }
 
 void TranspositionTable::Insert(Zobrist::hash_t hash, int score, ScoreBound bound, int depth, int ply, const Board::Move *move) {
